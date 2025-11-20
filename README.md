@@ -48,14 +48,14 @@ A React + Vite playground for building richly-configured NPC chat experiences on
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Start Vite in development mode (with proxy + HMR). |
-| `pnpm build` | Type-check via project references and emit the production bundle. |
-| `pnpm preview` | Preview the production build locally. |
-| `pnpm typecheck` | Run `tsc --noEmit` for fast type verification. |
-| `pnpm lint` | Lint all TS/TSX files (requires ESLint flat config cleanup). |
-| `pnpm format` | Format sources with Prettier. |
+| Command          | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `pnpm dev`       | Start Vite in development mode (with proxy + HMR).                |
+| `pnpm build`     | Type-check via project references and emit the production bundle. |
+| `pnpm preview`   | Preview the production build locally.                             |
+| `pnpm typecheck` | Run `tsc --noEmit` for fast type verification.                    |
+| `pnpm lint`      | Lint all TS/TSX files (requires ESLint flat config cleanup).      |
+| `pnpm format`    | Format sources with Prettier.                                     |
 
 ## NPC presets & localization
 
@@ -65,9 +65,16 @@ NPC definitions live in `src/config/characterProfile.ts`:
 - `getActiveCharacterModel()` seeds sessions with the proper model, while `getActiveNpcLocalization()` updates document titles and header subtitles automatically.
 - Add new presets by cloning an existing entry and following the schema documented in `docs/unified-character-model.md`.
 
+### Available NPC Characters
+
+- **mob** (default) – Shigeo Kageyama from Mob Psycho 100
+- **reigen** – Arataka Reigen from Mob Psycho 100
+- **tech-architect** – Senior Technical Architecture Consultant for project evaluation
+
 ## Additional docs
 
 - `docs/architecture.md` – Chat feature layering, controller contract, and proxy details.
 - `docs/unified-character-model.md` – Full breakdown of the V3 persona schema plus switching notes.
+- `docs/tech-architect-npc.md` – Technical Architecture Consultant NPC documentation and usage guide.
 
 Have fun experimenting with different personas and prompts! 🎮
