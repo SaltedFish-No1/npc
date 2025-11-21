@@ -40,6 +40,7 @@ export default function ChatFeature() {
     sessionError,
     handleSettingsSubmit,
     handleGenerateAvatar,
+    handleResetSession,
     sendMessage
   } = useChatController();
 
@@ -115,6 +116,7 @@ export default function ChatFeature() {
             currentLanguage={currentLanguage}
             onLanguageChange={handleLanguageChange}
             appSubtitle={npcLocalization?.appSubtitle}
+            onNpcChange={handleResetSession}
           />
 
           <ChatMessages

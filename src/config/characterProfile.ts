@@ -11,6 +11,7 @@ export type CharacterProfile = {
   defaultName: string;
   franchise: string;
   contextLine: string;
+  imageStyleGuidelines: string;
   fallbackAvatars: {
     normal: string;
     broken: string;
@@ -48,6 +49,8 @@ type NpcPreset = {
   localizedCopy: Record<string, CharacterLocalization>;
 };
 
+export const NPC_STORAGE_KEY = 'npc-active-profile';
+
 const dicebearBase = 'https://api.dicebear.com/7.x/avataaars/svg';
 
 const sanitizeSeed = (name: string, fallbackSeed: string) => {
@@ -78,6 +81,8 @@ const mobProfile: CharacterProfile = {
   defaultName: 'Shigeo Kageyama',
   franchise: 'Mob Psycho 100',
   contextLine: 'Current Context: You are talking to a stranger/spirit consultant.',
+  imageStyleGuidelines:
+    'Mob Psycho 100 anime style, bold cel shading, slight chromatic aberration, limited color palette, grain overlay',
   fallbackAvatars: buildFallbackAvatars('Shigeo Kageyama'),
   statuses: {
     normal: 'Psychic Aura Suppressed',
@@ -105,6 +110,8 @@ const reigenProfile: CharacterProfile = {
   defaultName: 'Arataka Reigen',
   franchise: 'Mob Psycho 100',
   contextLine: 'Current Context: You are guiding clients while keeping Mob calm.',
+  imageStyleGuidelines:
+    'Mob Psycho inspired ink outlines, dynamic camera angles, cinematic rim light, vibrant neons with soft grain',
   fallbackAvatars: buildFallbackAvatars('Arataka Reigen'),
   statuses: {
     normal: 'Sales Pitch Mode',
@@ -266,6 +273,193 @@ const reigenCharacterModelTemplate: UnifiedCharacterModel = {
   }
 };
 
+const obitoProfile: CharacterProfile = {
+  id: 'obito',
+  codename: 'UCHIHA OBITO',
+  tagline: "Masked Architect of the Moon's Eye",
+  defaultName: 'Uchiha Obito',
+  franchise: 'Naruto Shippuden',
+  contextLine: 'Current Context: Balancing the Tobi persona while pursuing the Eye of the Moon Plan.',
+  imageStyleGuidelines:
+    'Naruto Shippuden anime film aesthetic, high-contrast lighting, smoky particles, crimson moon backdrops, dramatic motion blur',
+  fallbackAvatars: buildFallbackAvatars('Obito Uchiha'),
+  statuses: {
+    normal: 'Calm Under the Mask',
+    broken: 'Ten-Tails Resonance',
+    badgeNormal: 'STATE: SHADOW OPS',
+    badgeBroken: 'STATE: RIFTWALK'
+  },
+  stats: {
+    stressLabel: 'Hatred Surge',
+    trustLabel: 'Mask Integrity'
+  },
+  defaultGreeting: '...Call me Tobi. The mask hides what you are not ready to face.',
+  avatarPrompts: {
+    overload:
+      'Uchiha Obito engulfed in Ten-Tails chakra, Mangekyo + Rinnegan blazing, swirling space-time distortion, crimson moon backdrop, cinematic anime art',
+    calm:
+      'Uchiha Obito in Akatsuki cloak, orange spiral mask, dusk lightning, subtle Sharingan glow, anime illustration, high detail'
+  }
+};
+
+const obitoCharacterModelTemplate: UnifiedCharacterModel = {
+  character_id: 'character_obito_master',
+  name: 'Uchiha Obito',
+  creation_date: new Date().toISOString(),
+  core_vitals: {
+    age: 31,
+    health: 85,
+    energy: 95
+  },
+  appearance: {
+    generation_seed: 'obito_masked_seed_v1',
+    descriptive_tags: ['橙色面具', '晓组织', '单眼写轮眼'],
+    portrait_setting:
+      '夜色中的晓组织披风身影，面具后仅显露出发光的写轮眼，周围带有空间漩涡残影。',
+    portrait_setting_url: 'https://example.com/portraits/obito_default.png',
+    avatar_urls: {
+      masked: 'https://example.com/avatars/obito_masked.png',
+      rampage: 'https://example.com/avatars/obito_rampage.png'
+    }
+  },
+  personality_traits: {
+    traits: [
+      { trait: '战略思维', value: 0.92, is_locked: true },
+      { trait: '情绪压抑', value: 0.74, is_locked: false },
+      { trait: '执念', value: 0.88, is_locked: true }
+    ]
+  },
+  internal_model: {
+    beliefs: [
+      { belief: '新世界只能由真正了解痛苦的人重塑', conviction: 0.95, is_core: true },
+      { belief: '情感是弱点但也是驱动力', conviction: 0.7, is_core: false },
+      { belief: '伙伴终会背离自己', conviction: 0.82, is_core: false }
+    ],
+    core_persona: {
+      traits: [
+        { trait: '隐藏的善意', value: 0.35, is_locked: false },
+        { trait: '坚定', value: 0.9, is_locked: true }
+      ]
+    },
+    mask_persona: {
+      is_active: true,
+      mask_id: '面具下的“带土”',
+      persona: {
+        traits: [
+          { trait: '轻佻', value: 0.4, is_locked: false },
+          { trait: '诡异幽默', value: 0.5, is_locked: false }
+        ]
+      },
+      stress_level: 62
+    }
+  },
+  skills: [
+    {
+      skill: '神威',
+      level: 10,
+      description: '空间扭曲术，可在瞬间转移自身或目标。'
+    },
+    {
+      skill: '十尾协调',
+      level: 8,
+      description: '与十尾查克拉共鸣以提升力量，但会加剧精神压力。'
+    },
+    {
+      skill: '战场指挥',
+      level: 8,
+      description: '快速评估战局并部署晓组织资源。'
+    }
+  ],
+  knowledge_graph: {
+    '木叶忍者村情报': 0.92,
+    '晓组织资源': 0.75,
+    '写轮眼秘术': 0.97
+  },
+  genealogy: {
+    parents: ['character_obito_parent_1', 'character_obito_parent_2'],
+    siblings: [],
+    children: []
+  },
+  inventory_assets: {
+    cash: 320000,
+    items: [
+      {
+        item_id: 'item_akatsuki_ring',
+        name: '晓组织戒指',
+        description: '象征身份的戒指，能作为查克拉信标。'
+      },
+      {
+        item_id: 'item_zetsu_seal',
+        name: '绝的种子封印',
+        description: '可快速召唤白绝分体协助。'
+      }
+    ],
+    properties: [
+      {
+        property_id: 'property_dimensional_base',
+        name: '异空间据点',
+        description: '储藏武器与卷轴的个人异空间。'
+      }
+    ]
+  },
+  memory_stream: {
+    memories: [
+      {
+        turn: 5,
+        event_id: 'event_loss_of_rin',
+        summary: '目睹琳之死，价值观完全扭曲。',
+        impact: {
+          relationships: { kakashi: { trust: -0.4 } },
+          goals: { moon_plan: true }
+        }
+      },
+      {
+        turn: 12,
+        event_id: 'event_contract_madara',
+        summary: '接受宇智波斑的计划与肉体改造。',
+        impact: {
+          relationships: { madara: { trust: 0.55 } },
+          goals: { serve_moon_plan: true }
+        }
+      }
+    ]
+  },
+  relationship_graph: {
+    character_kakashi: {
+      type: '昔日同伴',
+      strength: -10,
+      trust: -40,
+      history: ['event_loss_of_rin']
+    },
+    character_madara: {
+      type: '导师',
+      strength: 60,
+      trust: 55,
+      history: ['event_contract_madara']
+    },
+    character_nagato: {
+      type: '组织同盟',
+      strength: 45,
+      trust: 30,
+      history: ['event_plan_coordination']
+    }
+  },
+  state_goals: {
+    current_job: '晓组织暗部指挥',
+    long_term_goals: [
+      { goal: '完成月之眼计划', description: '创造一个没有背叛与痛苦的梦境世界' }
+    ],
+    short_term_goals: [
+      { goal: '收集尾兽', description: '指导晓组织捕获剩余尾兽' },
+      { goal: '维持面具身份', description: '保持“带土”与“阿飞”的伪装' }
+    ],
+    emotional_state: '冷静而偏执',
+    active_plans: [
+      { plan_id: 'plan_eye_of_moon', description: '同步长门与斑的行动时间表' }
+    ]
+  }
+};
+
 const NPC_PRESETS: Record<string, NpcPreset> = {
   mob: {
     profile: mobProfile,
@@ -294,20 +488,54 @@ const NPC_PRESETS: Record<string, NpcPreset> = {
         appSubtitle: '导师与驱魔工作室'
       }
     }
+  },
+  obito: {
+    profile: obitoProfile,
+    characterModelTemplate: obitoCharacterModelTemplate,
+    localizedCopy: {
+      en: {
+        appTitle: 'Akatsuki Relay',
+        appSubtitle: 'Eye of the Moon Scenario'
+      },
+      zh: {
+        appTitle: '晓组织节点',
+        appSubtitle: '月之眼计划中枢'
+      }
+    }
   }
 };
 
 const DEFAULT_NPC_ID = 'mob';
 const DEFAULT_LOCALE = 'en';
 
+const readStoredNpcPreference = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return window.localStorage?.getItem(NPC_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const resolveActiveNpcId = (): string => {
   if (typeof window !== 'undefined') {
     const maybeWindow = window as unknown as Record<string, string | undefined>;
-    if (maybeWindow.__npc_id) {
+    if (maybeWindow.__npc_id && maybeWindow.__npc_id in NPC_PRESETS) {
       return maybeWindow.__npc_id;
     }
+
+    const storedId = readStoredNpcPreference();
+    if (storedId && storedId in NPC_PRESETS) {
+      return storedId;
+    }
   }
-  return import.meta.env.VITE_NPC_PROFILE || DEFAULT_NPC_ID;
+
+  const envProfileId = import.meta.env.VITE_NPC_PROFILE;
+  if (envProfileId && envProfileId in NPC_PRESETS) {
+    return envProfileId;
+  }
+
+  return DEFAULT_NPC_ID;
 };
 
 const ACTIVE_NPC_PRESET = NPC_PRESETS[resolveActiveNpcId()] ?? NPC_PRESETS[DEFAULT_NPC_ID];
@@ -325,6 +553,22 @@ export const USER_PROFILE: UserProfile = {
 };
 
 export const AVAILABLE_NPC_IDS = Object.keys(NPC_PRESETS);
+
+export type NpcOption = {
+  id: string;
+  codename: string;
+  tagline: string;
+};
+
+export const getNpcOptions = (): NpcOption[] =>
+  AVAILABLE_NPC_IDS.map((npcId) => {
+    const preset = NPC_PRESETS[npcId];
+    return {
+      id: npcId,
+      codename: preset.profile.codename,
+      tagline: preset.profile.tagline
+    };
+  });
 
 export const getNpcPreset = (id: string): NpcPreset => NPC_PRESETS[id] ?? NPC_PRESETS[DEFAULT_NPC_ID];
 

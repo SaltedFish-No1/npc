@@ -12,7 +12,7 @@ import {
   SettingsForm
 } from '@/schemas/chat';
 import { streamChatCompletion, generateImage } from '@/services/chatService';
-import { appendTurn, updateAvatar } from '@/services/sessionService';
+import { appendTurn, resetSession, updateAvatar } from '@/services/sessionService';
 import { buildSystemPrompt } from '@/services/promptService';
 import { useTranslation } from 'react-i18next';
 import { CHARACTER_PROFILE } from '@/config/characterProfile';
@@ -76,6 +76,12 @@ export function useChatController() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleResetSession = async () => {
+    if (!user?.uid) return;
+    await resetSession(user.uid);
+    queryClient.removeQueries({ queryKey: ['session', user.uid] });
   };
 
   const sendMessage = async (e?: FormEvent) => {
@@ -191,6 +197,7 @@ export function useChatController() {
     sessionError,
     handleSettingsSubmit,
     handleGenerateAvatar,
+    handleResetSession,
     sendMessage
   };
 }

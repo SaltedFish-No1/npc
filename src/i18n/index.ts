@@ -16,7 +16,8 @@ const resources = {
         header: {
           connecting: 'Connecting...',
           events: 'Events: {{count}}',
-          language: 'Language'
+          language: 'Language',
+          character: 'Persona'
         },
         sidebar: {
           sectionTitle: 'Character State',
@@ -79,7 +80,8 @@ const resources = {
         header: {
           connecting: '连接中…',
           events: '事件：{{count}}',
-          language: '语言'
+          language: '语言',
+          character: '角色'
         },
         sidebar: {
           sectionTitle: '角色状态',

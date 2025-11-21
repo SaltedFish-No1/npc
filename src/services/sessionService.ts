@@ -47,6 +47,17 @@ const emitSession = (userId: string, session: SessionData) => {
   listeners.forEach((listener) => listener(session));
 };
 
+const clearPersistedSession = (userId: string) => {
+  memoryStore.delete(userId);
+  if (isBrowser) {
+    try {
+      window.localStorage.removeItem(storageKey(userId));
+    } catch (error) {
+      console.warn('Failed to remove stored session', error);
+    }
+  }
+};
+
 const ensureSessionListeners = (userId: string) => {
   if (!subscribers.has(userId)) {
     subscribers.set(userId, new Set());
@@ -140,4 +151,8 @@ export const updateAvatar = async (userId: string, avatarUrl: string) => {
   };
 
   writeSession(userId, updated);
+};
+
+export const resetSession = async (userId: string) => {
+  clearPersistedSession(userId);
 };
