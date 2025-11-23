@@ -12,7 +12,7 @@ export const useAuth = () => {
       .finally(() => setLoading(false));
 
     const unsubscribe = subscribeAuth(setUser);
-    return () => unsubscribe();
+    return () => { unsubscribe(); };
   }, []);
 
   return { user, loading, error };

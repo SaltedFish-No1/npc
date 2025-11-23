@@ -1,16 +1,20 @@
 node_modules/
+web/node_modules/
 .pnpm-store/
 
 # Build artifacts
 dist/
 dist-ssr/
 .vite/
+web/dist/
+web/dist-ssr/
+web/.vite/
 coverage/
 
 # Env & secrets
 .env
 .env.*
-!.env.example
+!**/.env.example
 
 # Logs
 *.log
@@ -27,4 +31,16 @@ pnpm-debug.log*
 *.local
 
 # docs
-docs/*
+docs/
+
+# backend service
+backend/node_modules/
+backend/dist/
+backend/.tsbuildinfo
+backend/.env
+
+# frontend service
+web/node_modules/
+web/dist/
+web/.tsbuildinfo
+web/.env

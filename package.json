@@ -1,64 +1,13 @@
 {
-  "name": "npc",
-  "version": "0.1.0",
+  "name": "npc-monorepo",
   "private": true,
-  "type": "module",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
-    "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
-    "prepare": "husky install"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{md,json,css}": [
-      "prettier --write"
-    ]
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^3.9.0",
-    "@tanstack/react-query": "^5.56.0",
-    "classnames": "^2.5.1",
-    "i18next": "^23.14.0",
-    "i18next-browser-languagedetector": "^7.2.0",
-    "i18next-http-backend": "^2.6.0",
-    "lucide-react": "^0.464.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.53.0",
-    "react-i18next": "^15.0.1",
-    "react-router-dom": "^6.28.0",
-    "sonner": "^1.6.4",
-    "zod": "^3.23.8",
-    "zustand": "^4.5.2"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.39.1",
-    "@types/node": "^22.9.4",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@typescript-eslint/eslint-plugin": "^8.12.2",
-    "@typescript-eslint/parser": "^8.12.2",
-    "@vitejs/plugin-react": "^4.3.3",
-    "autoprefixer": "^10.4.19",
-    "eslint": "^9.13.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-react": "^7.37.2",
-    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
-    "eslint-plugin-react-refresh": "^0.4.14",
-    "husky": "^9.1.6",
-    "lint-staged": "^15.2.10",
-    "postcss": "^8.4.48",
-    "prettier": "^3.3.3",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.10"
+    "dev": "pnpm --filter @npc/web dev",
+    "build": "pnpm --filter @npc/web build",
+    "preview": "pnpm --filter @npc/web preview",
+    "lint": "pnpm --filter @npc/web lint",
+    "format": "pnpm --filter @npc/web format",
+    "typecheck": "pnpm --filter @npc/web typecheck"
   }
 }
