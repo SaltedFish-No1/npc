@@ -1,9 +1,13 @@
 type Primitive = string | number | boolean | null | undefined;
 
-type TemplateContext = Record<string, Primitive | TemplateContext>;
+type TemplateValue = Primitive | TemplateContext | TemplateValue[];
 
-const lookup = (ctx: TemplateContext, path: string): Primitive | TemplateContext => {
-  return path.split('.').reduce<Primitive | TemplateContext>((acc, key) => {
+interface TemplateContext {
+  [key: string]: TemplateValue;
+}
+
+const lookup = (ctx: TemplateContext, path: string): TemplateValue => {
+  return path.split('.').reduce<TemplateValue>((acc, key) => {
     if (acc && typeof acc === 'object' && key in acc) {
       return (acc as TemplateContext)[key];
     }

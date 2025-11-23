@@ -51,21 +51,8 @@ export default function ChatFeature() {
     return state.avatarUrl;
   }, [state.avatarUrl, isBroken]);
 
-  const messages: ChatMessage[] = useMemo(() => {
-    if (!session) return [];
-    const withPreview = liveContent
-      ? [
-          ...session.messages,
-          {
-            role: 'assistant',
-            content: liveContent || '...',
-            thought: t('chat.messages.streaming'),
-            currentStress: state.stress
-          } as ChatMessage
-        ]
-      : session.messages;
-    return withPreview;
-  }, [liveContent, session, state.stress, t]);
+  const messages: ChatMessage[] = useMemo(() => session?.messages ?? [], [session]);
+  const isThinking = isSending || Boolean(liveContent);
 
   const isBooting = authLoading || sessionPending || !session;
   const currentLanguage = normalizeLanguageCode(i18n.resolvedLanguage || i18n.language);
@@ -122,6 +109,7 @@ export default function ChatFeature() {
             isBooting={isBooting}
             avatar={avatar}
             state={state}
+            isThinking={isThinking}
           />
 
           <ChatInput

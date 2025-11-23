@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
-import sse from 'fastify-sse-v2';
+import { FastifySSEPlugin } from 'fastify-sse-v2';
 import type { FastifyInstance } from 'fastify';
 
 import { AppConfig } from './config/env.js';
@@ -31,12 +31,12 @@ export const createServer = async (config: AppConfig): Promise<FastifyInstance> 
 
   await app.register(cors, { origin: true });
   await app.register(rateLimit, { max: 60, timeWindow: '1 minute' });
-  await app.register(sse);
+  await app.register(FastifySSEPlugin);
 
   registerHealthRoute(app);
 
   app.addHook('onRequest', async (request, reply) => {
-    const path = request.routerPath ?? request.raw.url ?? '';
+    const path = request.routeOptions?.url ?? request.raw.url ?? '';
     if (path.startsWith('/health')) return;
     const token = request.headers['x-api-key'];
     if (token !== ctx.config.NPC_GATEWAY_KEY) {

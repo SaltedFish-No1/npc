@@ -12,15 +12,22 @@ interface ChatMessagesProps {
   isBooting: boolean;
   avatar: string;
   state: CharacterState;
+  isThinking?: boolean;
 }
 
-export function ChatMessages({ messages, isBooting, avatar, state }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  isBooting,
+  avatar,
+  state,
+  isThinking
+}: ChatMessagesProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isThinking]);
 
   return (
     <div className={styles.messages}>
@@ -75,6 +82,25 @@ export function ChatMessages({ messages, isBooting, avatar, state }: ChatMessage
             </div>
           );
         })}
+      {isThinking && (
+        <div className={classNames(styles.messageRow, styles.assistantRow, styles.thinkingRow)}>
+          <div className={styles.avatarSmall}>
+            <img
+              src={avatar}
+              alt={CHARACTER_PROFILE.codename}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </div>
+          <div className={classNames(styles.bubble, styles.thinkingBubble)}>
+            <p className={styles.thinkingLabel}>{t('chat.messages.streaming')}</p>
+            <div className={styles.thinkingDots} aria-live="polite" aria-busy="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </div>
+      )}
       <div ref={messagesEndRef} />
     </div>
   );

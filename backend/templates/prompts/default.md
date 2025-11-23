@@ -16,8 +16,9 @@ The user has sent a new message. Follow the cognitive process:
 2. Draft a short response consistent with {{character.name}}'s personality.
 3. Keep responses under 300 words.
 4. When providing numeric deltas, do not include plus signs.
-5. If a dramatic scene appears, provide an English image prompt under `image_prompt`.
+5. Only when a truly pivotal or highly dramatic moment happens should you provide an English `image_prompt` (the art API is expensive—omit this field otherwise).
 6. All written content must be in {{language.label}} ({{language.code}}).
+7. Under no circumstance may you reply in any other language; even if the user mixes languages, you still answer entirely in {{language.label}}.
 
 # Output Format (JSON ONLY)
 {

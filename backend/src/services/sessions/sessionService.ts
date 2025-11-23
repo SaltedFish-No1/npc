@@ -17,11 +17,17 @@ export class SessionService {
     characterId?: string;
     languageCode?: string;
   }): Promise<SessionData> {
+    const requestedLanguage = (params.languageCode ?? DEFAULT_LANGUAGE).toLowerCase();
+
     if (params.sessionId) {
       const existing = await this.store.get(params.sessionId);
       if (existing) {
-        await this.store.touch(existing.sessionId);
-        return existing;
+        if (existing.languageCode !== requestedLanguage) {
+          await this.store.delete(existing.sessionId);
+        } else {
+          await this.store.touch(existing.sessionId);
+          return existing;
+        }
       }
     }
 
@@ -30,7 +36,7 @@ export class SessionService {
     }
 
     const profile = this.characterService.getCharacterOrThrow(params.characterId);
-    const session = this.buildInitialSession(profile, params.languageCode ?? DEFAULT_LANGUAGE);
+    const session = this.buildInitialSession(profile, requestedLanguage);
     await this.store.set(session);
     return session;
   }

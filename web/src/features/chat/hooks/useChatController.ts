@@ -65,7 +65,7 @@ export function useChatController() {
           updatedAt: Date.now()
         };
         queryClient.setQueryData<SessionData>(sessionQueryKey, updatedSession);
-        persistSessionSnapshot(user.uid, activeCharacterId, updatedSession);
+        persistSessionSnapshot(user.uid, activeCharacterId, targetLanguage, updatedSession);
       }
       if (imageResponse.imageUrl) {
         toast.success(t('toasts.avatarUpdated'));
@@ -80,7 +80,7 @@ export function useChatController() {
 
   const handleResetSession = async () => {
     if (!user?.uid) return;
-    await resetSession(user.uid, activeCharacterId);
+    await resetSession(user.uid, activeCharacterId, targetLanguage);
     queryClient.removeQueries({ queryKey: sessionQueryKey });
   };
 
@@ -91,8 +91,18 @@ export function useChatController() {
     setLiveContent('');
     setDraftImagePrompt(undefined);
 
-    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    const messageContent = input.trim();
+    const userMessage: ChatMessage = { role: 'user', content: messageContent };
     const baseSession = (queryClient.getQueryData(sessionQueryKey) as SessionData | undefined) ?? session;
+
+    const optimisticSession: SessionData = {
+      ...baseSession,
+      messages: [...baseSession.messages, userMessage],
+      updatedAt: Date.now()
+    };
+    queryClient.setQueryData<SessionData>(sessionQueryKey, optimisticSession);
+    persistSessionSnapshot(user.uid, activeCharacterId, targetLanguage, optimisticSession);
+    setInput('');
 
     try {
       addLog({ source: 'LLM', message: 'Streaming from NPC backend...' });
@@ -147,14 +157,16 @@ export function useChatController() {
       };
 
       queryClient.setQueryData<SessionData>(sessionQueryKey, nextSession);
-      persistSessionSnapshot(user.uid, activeCharacterId, nextSession);
+      persistSessionSnapshot(user.uid, activeCharacterId, targetLanguage, nextSession);
 
-      setInput('');
       addLog({ source: 'SYSTEM', message: 'Turn completed' });
     } catch (error) {
       console.error(error);
       toast.error(t('toasts.communicationError'));
       addLog({ source: 'ERROR', message: String(error), level: 'error' });
+      queryClient.setQueryData(sessionQueryKey, baseSession);
+      persistSessionSnapshot(user.uid, activeCharacterId, targetLanguage, baseSession);
+      setInput(messageContent);
     } finally {
       setIsSending(false);
       setLiveContent('');

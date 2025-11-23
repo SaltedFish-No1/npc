@@ -31,6 +31,7 @@ export const useChatSession = ({ userId, characterId, languageCode }: UseChatSes
     const unsub = subscribeSession(
       userId,
       characterId,
+      languageCode,
       (data) => queryClient.setQueryData(queryKey, data),
       (error) => console.error('Session subscribe error', error)
     );
