@@ -57,8 +57,9 @@ export const buildAppContext = (config: AppConfig): AppContext => {
   const sessionService = new SessionService(sessionStore as any, characterService, syncCreateCache(config));
   const promptEngine = new PromptEngine(path.resolve(baseDir, 'templates/prompts'));
   const llmClient = new LLMClient(config);
-  const memoryService = new MemoryService(config, syncGetDB(), llmClient);
-  const chatService = new ChatService(promptEngine, sessionService, characterService, llmClient, memoryService);
+  // 暂时禁用记忆服务以避免嵌入模型错误
+  // const memoryService = new MemoryService(config, syncGetDB(), llmClient);
+  const chatService = new ChatService(promptEngine, sessionService, characterService, llmClient);
   const imageService = new ImageService(llmClient, sessionService);
 
   return {

@@ -8,6 +8,14 @@
     "preview": "pnpm --filter @npc/web preview",
     "lint": "pnpm --filter @npc/web lint",
     "format": "pnpm --filter @npc/web format",
-    "typecheck": "pnpm --filter @npc/web typecheck"
+    "typecheck": "pnpm --filter @npc/web typecheck",
+    "dev:backend": "pnpm --filter headless-npc-backend dev",
+    "build:backend": "pnpm --filter headless-npc-backend build",
+    "start:backend": "pnpm --filter headless-npc-backend start",
+    "test:backend": "pnpm --filter headless-npc-backend test",
+    "typecheck:backend": "pnpm --filter headless-npc-backend typecheck"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }

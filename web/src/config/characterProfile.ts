@@ -58,26 +58,25 @@ type NpcPreset = {
 
 export const NPC_STORAGE_KEY = 'npc-active-profile';
 
-const dicebearBase = 'https://api.dicebear.com/7.x/avataaars/svg';
-
 const sanitizeSeed = (name: string, fallbackSeed: string) => {
   const cleaned = name.replace(/[^a-zA-Z0-9]/g, '');
   return cleaned.length ? cleaned : fallbackSeed;
 };
 
-const buildAvatarUrl = (seed: string, query: string) =>
-  `${dicebearBase}?seed=${encodeURIComponent(seed)}&${query}`;
-
-const avatarNormalQuery =
-  'top=shortHairTheCaesar&hairColor=2c1b18&skinColor=f8d25c&clothing=collarAndSweater&clotheColor=3c4f5c&eyes=happy&mouth=default';
-const avatarBrokenQuery =
-  'top=shortHairTheCaesar&hairColor=000000&skinColor=ff0000&clothing=collarAndSweater&clotheColor=000000&eyes=surprised&mouth=scream&style=circle';
+const buildAvatarUrl = (seed: string) => {
+  // Generate a consistent random number from the seed
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/500/500`;
+};
 
 const buildFallbackAvatars = (seedName: string) => {
   const seedBase = sanitizeSeed(seedName, 'npc');
   return {
-    normal: buildAvatarUrl(`${seedBase}Normal`, avatarNormalQuery),
-    broken: buildAvatarUrl(`${seedBase}Broken`, avatarBrokenQuery)
+    normal: buildAvatarUrl(`${seedBase}Normal`),
+    broken: buildAvatarUrl(`${seedBase}Broken`)
   };
 };
 
@@ -543,7 +542,7 @@ export const CHARACTER_PROFILE = ACTIVE_NPC_PRESET.profile;
 
 export const USER_PROFILE: UserProfile = {
   displayName: DEFAULT_USER_NAME,
-  fallbackAvatar: buildAvatarUrl(`${userSeedBase}Default`, avatarNormalQuery)
+  fallbackAvatar: buildAvatarUrl(`${userSeedBase}Default`)
 };
 
 export const AVAILABLE_NPC_IDS = Object.keys(NPC_PRESETS);

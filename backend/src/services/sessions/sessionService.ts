@@ -40,18 +40,20 @@ export class SessionService {
     languageCode?: string;
   }): Promise<SessionData> {
     const requestedLanguage = (params.languageCode ?? DEFAULT_LANGUAGE).toLowerCase();
+    // Resolve cache promise once at the beginning for all code paths
+    const cacheInstance = await this.cache;
 
     if (params.sessionId) {
-      const cached = await this.cache?.get(params.sessionId);
+      const cached = await cacheInstance?.get(params.sessionId);
       const existing = cached ?? (await this.store.get(params.sessionId));
       if (existing) {
         // 业务关键逻辑：语言切换时，删除旧会话并重建，避免跨语言历史污染
         if (existing.languageCode !== requestedLanguage) {
           await this.store.delete(existing.sessionId);
-          await this.cache?.delete(existing.sessionId);
+          await cacheInstance?.delete(existing.sessionId);
         } else {
           await this.store.touch(existing.sessionId);
-          await this.cache?.touch(existing.sessionId);
+          await cacheInstance?.touch(existing.sessionId);
           return existing;
         }
       }
@@ -64,7 +66,7 @@ export class SessionService {
     const profile = this.characterService.getCharacterOrThrow(params.characterId);
     const session = this.buildInitialSession(profile, requestedLanguage);
     await this.store.set(session);
-    await this.cache?.set(session);
+    await cacheInstance?.set(session);
     return session;
   }
 
@@ -112,8 +114,10 @@ export class SessionService {
       messages: [...existing.messages, payload.userMessage, payload.assistantMessage]
     };
 
+    // Resolve cache promise if it exists for update operations
+    const cacheInstance = await this.cache;
     await this.store.set(updated);
-    await this.cache?.set(updated);
+    await cacheInstance?.set(updated);
     return updated;
   }
 
@@ -139,8 +143,10 @@ export class SessionService {
         avatarUrl
       }
     };
+    // Resolve cache promise if it exists for update operations
+    const cacheInstance = await this.cache;
     await this.store.set(updated);
-    await this.cache?.set(updated);
+    await cacheInstance?.set(updated);
     return updated;
   }
 

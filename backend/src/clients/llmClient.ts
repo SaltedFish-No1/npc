@@ -24,7 +24,7 @@ export type ImageGenerationRequest = {
 };
 
 const SIZE_MAP: Record<string, string> = {
-  '1:1': '2048x2048',
+  '1:1': '1024x1024',
   '16:9': '2560x1440',
   '4:3': '2304x1728'
 };
@@ -203,7 +203,13 @@ export class LLMClient {
     });
 
     if (!response.ok) {
-      const errText = await response.text();
+      const status = response.status;
+      const statusText = response.statusText;
+      let errText = await response.text();
+      // 如果没有错误文本，使用状态信息
+      if (!errText) {
+        errText = `${statusText} (${status})`;
+      }
       throw new Error(`Image API error: ${errText}`);
     }
 
@@ -220,7 +226,7 @@ export class LLMClient {
       // 生成固定长度的随机嵌入用于本地测试
       return Array.from({ length: this.config.EMBEDDING_DIM }, () => Math.random());
     }
-    const model = this.config.EMBEDDING_MODEL_NAME ?? 'text-embedding-3-large';
+    const model = this.config.EMBEDDING_MODEL_NAME || 'text-embedding-3-large';
     const response = await fetch(`${this.config.LLM_API_BASE}/embeddings`, {
       method: 'POST',
       headers: this.buildHeaders(),
