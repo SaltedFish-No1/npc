@@ -115,7 +115,7 @@ app.addHook('onRequest', async (request, reply) => {
 - `POST /api/npc/chat/stream`：SSE 流式聊天
 - `POST /api/npc/images`：图片生成
 - `GET /api/npc/sessions/:id`：会话详情
-- `GET /api/npc/sessions/:id/messages`：会话消息
+- `GET /api/npc/sessions/:id/messages?limit&cursor`：会话消息游标分页，返回 `items` + `nextCursor`
 - `GET /api/npc/memory-stream`：记忆流
 
 ## 核心服务与组件
@@ -174,6 +174,11 @@ flowchart LR
 ```
 
 ### 缓存机制
+### 头像与聊天历史管线
+
+1. `/api/npc/images` 生成的图片始终写入 `character_avatars` 表，并调用 `SessionService.updateAvatar` 保证下次激活立即复用。
+2. 同一流程会通过 `attachImageToLastAssistantMessage` 将 `imageUrl` 与 `imagePrompt` 贴在最新的助手消息上，前端无需额外轮询即可渲染图像。
+3. `session_messages` 表为每条消息记录 `messageId`/`createdAt`，`/api/npc/sessions/:id/messages` 使用游标向后翻页，前端可在滚动时带上 `nextCursor` 继续拉取更久远的历史，激活接口只需返回最近几条即可。
 
 ```mermaid
 flowchart LR

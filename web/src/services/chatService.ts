@@ -15,7 +15,8 @@ import {
   sessionSchema,
   SessionData,
   characterStateSchema,
-  chatMessageSchema
+  chatMessageSchema,
+  ChatMessage
 } from '@/schemas/chat';
 import { unifiedCharacterModelSchema } from '@/schemas/character';
 
@@ -41,6 +42,11 @@ const characterSummarySchema = z.object({
 });
 
 export type CharacterSummary = z.infer<typeof characterSummarySchema>;
+
+const messageHistoryResponseSchema = z.object({
+  items: z.array(chatMessageSchema),
+  nextCursor: z.string().nullable()
+});
 
 const trimmedBase = NPC_API_BASE_URL.replace(/\/+$/, '');
 
@@ -248,6 +254,32 @@ export const streamChatCompletion = async (params: StreamChatParams): Promise<Ch
   }
 
   return finalPayload;
+};
+
+/**
+ * 功能：分页获取后台会话消息
+ * Description: Fetch paginated session history with cursor support
+ */
+export const fetchSessionMessages = async (params: {
+  sessionId: string;
+  limit?: number;
+  cursor?: string | null;
+  signal?: AbortSignal;
+}): Promise<{ items: ChatMessage[]; nextCursor: string | null }> => {
+  const search = new URLSearchParams();
+  search.set('limit', String(params.limit ?? 50));
+  if (params.cursor) {
+    search.set('cursor', params.cursor);
+  }
+
+  return performJsonRequest(
+    `/api/npc/sessions/${params.sessionId}/messages?${search.toString()}`,
+    messageHistoryResponseSchema,
+    {
+      method: 'GET',
+      signal: params.signal
+    }
+  );
 };
 
 /**

@@ -28,24 +28,18 @@ export const registerSessionRoutes = (app: FastifyInstance, ctx: AppContext) => 
   });
 
   app.get('/api/npc/sessions/:id/messages', async (request: FastifyRequest, reply: FastifyReply) => {
-    const querySchema = z.object({ limit: z.coerce.number().int().positive().max(200).default(50), offset: z.coerce.number().int().nonnegative().default(0) });
+    const querySchema = z.object({
+      limit: z.coerce.number().int().positive().max(200).default(50),
+      cursor: z.string().optional()
+    });
     const paramsSchema = z.object({ id: z.string() });
     const params = paramsSchema.parse(request.params);
-    const { limit, offset } = querySchema.parse(request.query);
-    const db = await (globalThis as any).__npc_db;
-    const all = await db.query(
-      'SELECT messageId, role, content, thought, attributes, createdAt FROM session_messages WHERE sessionId=$1 ORDER BY createdAt ASC',
-      [params.id]
-    );
-    const total = all.rows.length;
-    const slice = all.rows.slice(offset, offset + limit);
-    const items = slice.map((m: any) => ({
-      role: m.role,
-      content: m.content,
-      thought: m.thought ?? undefined,
-      ...(typeof m.attributes === 'string' ? JSON.parse(m.attributes || '{}') : (m.attributes || {})),
-      createdAt: m.createdat ?? m.createdAt
-    }));
-    return reply.send({ total, limit, offset, items });
+    const { limit, cursor } = querySchema.parse(request.query);
+    const result = await ctx.services.sessions.listMessages({
+      sessionId: params.id,
+      limit,
+      cursor: cursor || undefined
+    });
+    return reply.send(result);
   });
 };

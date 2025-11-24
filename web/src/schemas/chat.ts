@@ -35,7 +35,9 @@ export const chatMessageSchema = z.object({
   trustChange: z.number().optional(),
   currentStress: z.number().optional(),
   imageUrl: z.string().url().optional(),
-  imagePrompt: z.string().optional()
+  imagePrompt: z.string().optional(),
+  messageId: z.string().optional(),
+  createdAt: z.number().optional()
 });
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

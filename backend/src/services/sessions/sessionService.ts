@@ -176,6 +176,12 @@ export class SessionService {
     return updated;
   }
 
+  /**
+   * 功能：将最新的助手消息与图片生成结果关联，便于前端渲染 | Attach last assistant message to generated image URL/prompt
+   * @param {string} sessionId - 会话 ID
+   * @param {{imageUrl:string;imagePrompt?:string}} payload - 图片信息
+   * @returns {Promise<SessionData>} 更新后的会话
+   */
   async attachImageToLastAssistantMessage(
     sessionId: string,
     payload: { imageUrl: string; imagePrompt?: string }
@@ -206,6 +212,10 @@ export class SessionService {
     return existing;
   }
 
+  /**
+   * 功能：分页读取会话消息，支持游标（cursor）向上翻页
+   * Description: List session messages with cursor-based pagination
+   */
   async listMessages(params: {
     sessionId: string;
     limit?: number;
@@ -239,11 +249,13 @@ export class SessionService {
     values.push(limit + 1);
     const res = await db.query<{
       messageid: string;
+      messageId: string;
       role: string;
       content: string;
       thought: string | null;
       attributes: string | null;
       createdat: number;
+      createdAt: number;
     }>(
       `SELECT messageId, role, content, thought, attributes, createdAt
        FROM session_messages
@@ -253,21 +265,27 @@ export class SessionService {
       values
     );
 
-    const rows = res.rows.slice();
+    const hasMore = res.rows.length > limit;
+    const pageRows = hasMore ? res.rows.slice(0, limit) : res.rows;
+
     let nextCursor: string | null = null;
-    if (rows.length > limit) {
-      const extra = rows.pop()!;
+    if (hasMore && pageRows.length) {
+      const oldest = pageRows[pageRows.length - 1];
       nextCursor = buildCursor({
-        messageId: (extra as any).messageid ?? (extra as any).messageId,
-        createdAt: (extra as any).createdat ?? (extra as any).createdAt
+        messageId: oldest.messageid ?? oldest.messageId,
+        createdAt: oldest.createdat ?? oldest.createdAt
       });
     }
 
-    const items = rows.map((row) => adaptMessageRow(row)).reverse();
+    const items = pageRows.map((row) => adaptMessageRow(row)).reverse();
 
     return { items, nextCursor };
   }
 
+  /**
+   * 功能：懒加载 DB 连接（若配置禁用数据库则返回 null）
+   * Description: Resolve DB connection or null when unavailable
+   */
   private async getDb(): Promise<DB | null> {
     if (!this.dbPromise) return null;
     try {
@@ -381,7 +399,9 @@ const isMessageOlderThan = (msg: ChatMessage, cursor: string): boolean => {
   return messageId < target.messageId;
 };
 
-type StoredAttributes = Partial<Pick<ChatMessage, 'imageUrl'>>;
+type StoredAttributes = Partial<
+  Pick<ChatMessage, 'imageUrl' | 'imagePrompt' | 'stressChange' | 'trustChange' | 'currentStress'>
+>;
 
 const adaptMessageRow = (row: {
   messageid?: string;
@@ -411,6 +431,18 @@ const parseAttributesPayload = (val: string | null): StoredAttributes => {
     const output: StoredAttributes = {};
     if (typeof parsed.imageUrl === 'string') {
       output.imageUrl = parsed.imageUrl;
+    }
+    if (typeof parsed.imagePrompt === 'string') {
+      output.imagePrompt = parsed.imagePrompt;
+    }
+    if (typeof parsed.stressChange === 'number') {
+      output.stressChange = parsed.stressChange;
+    }
+    if (typeof parsed.trustChange === 'number') {
+      output.trustChange = parsed.trustChange;
+    }
+    if (typeof parsed.currentStress === 'number') {
+      output.currentStress = parsed.currentStress;
     }
     return output;
   } catch {

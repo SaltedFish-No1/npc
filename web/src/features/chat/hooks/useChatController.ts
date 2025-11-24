@@ -5,14 +5,14 @@
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 React Query、i18n、stores 与服务模块
  */
-import { useState, FormEvent, useMemo } from 'react';
+import { useState, FormEvent, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useChatStore } from '@/stores/chatStore';
 import { characterStateSchema, ChatMessage, SessionData } from '@/schemas/chat';
-import { streamChatCompletion, generateImage } from '@/services/chatService';
+import { streamChatCompletion, generateImage, fetchSessionMessages } from '@/services/chatService';
 import { persistSessionSnapshot, resetSession } from '@/services/sessionService';
 import { useTranslation } from 'react-i18next';
 import { CHARACTER_PROFILE, getActiveNpcId } from '@/config/characterProfile';
@@ -51,8 +51,132 @@ export function useChatController() {
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [draftImagePrompt, setDraftImagePrompt] = useState<string | undefined>();
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const hydratedSessionsRef = useRef<Set<string>>(new Set());
 
   const state = session?.characterState ?? defaultState;
+
+  useEffect(() => {
+    setHistoryCursor(null);
+  }, [session?.sessionId]);
+
+  const mergeMessages = (existing: ChatMessage[], incoming: ChatMessage[]) => {
+    if (!incoming.length) return existing;
+    const keyFor = (message: ChatMessage, index: number) =>
+      message.messageId ?? `${message.role}-${message.createdAt ?? 0}-${index}`;
+    const map = new Map<string, ChatMessage>();
+    existing.forEach((message, index) => {
+      map.set(keyFor(message, index), message);
+    });
+    incoming.forEach((message, index) => {
+      const key = keyFor(message, existing.length + index);
+      const existingMessage = map.get(key);
+      map.set(key, existingMessage ? { ...existingMessage, ...message } : message);
+    });
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    return merged;
+  };
+
+  const messagesDiffer = (next: ChatMessage[], prev: ChatMessage[]) => {
+    if (next.length !== prev.length) return true;
+    for (let i = 0; i < next.length; i += 1) {
+      const nextMsg = next[i];
+      const prevMsg = prev[i];
+      if (!prevMsg) return true;
+      const nextKey = nextMsg.messageId ?? `${nextMsg.role}-${i}`;
+      const prevKey = prevMsg.messageId ?? `${prevMsg.role}-${i}`;
+      if (nextKey !== prevKey) return true;
+      if (
+        nextMsg.content !== prevMsg.content ||
+        nextMsg.imageUrl !== prevMsg.imageUrl ||
+        nextMsg.imagePrompt !== prevMsg.imagePrompt ||
+        nextMsg.thought !== prevMsg.thought
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const sessionId = session?.sessionId;
+    if (!sessionId || !user?.uid) return;
+    if (hydratedSessionsRef.current.has(sessionId)) return;
+
+    const controller = new AbortController();
+    hydratedSessionsRef.current.add(sessionId);
+    setIsHistoryLoading(true);
+
+    const hydrate = async () => {
+      try {
+        const history = await fetchSessionMessages({
+          sessionId,
+          limit: 50,
+          signal: controller.signal
+        });
+        setHistoryCursor(history.nextCursor ?? null);
+        if (history.items.length) {
+          const currentSession = queryClient.getQueryData<SessionData>(sessionQueryKey) ?? session;
+          const mergedMessages = mergeMessages(currentSession.messages, history.items);
+          if (messagesDiffer(mergedMessages, currentSession.messages)) {
+            const hydratedSession: SessionData = {
+              ...currentSession,
+              messages: mergedMessages,
+              updatedAt: Date.now()
+            };
+            queryClient.setQueryData<SessionData>(sessionQueryKey, hydratedSession);
+            persistSessionSnapshot(user.uid!, activeCharacterId, targetLanguage, hydratedSession);
+          }
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          hydratedSessionsRef.current.delete(sessionId);
+          console.error('Failed to hydrate history', error);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsHistoryLoading(false);
+        }
+      }
+    };
+
+    hydrate();
+    return () => controller.abort();
+  }, [session?.sessionId, user?.uid, sessionQueryKey, queryClient, activeCharacterId, targetLanguage, session]);
+
+  const loadOlderMessages = async () => {
+    if (!session?.sessionId || !historyCursor) return;
+    setIsHistoryLoading(true);
+    try {
+      const nextPage = await fetchSessionMessages({
+        sessionId: session.sessionId,
+        limit: 50,
+        cursor: historyCursor
+      });
+      setHistoryCursor(nextPage.nextCursor ?? null);
+      if (nextPage.items.length) {
+        const currentSession = queryClient.getQueryData<SessionData>(sessionQueryKey) ?? session;
+        const mergedMessages = mergeMessages(currentSession.messages, nextPage.items);
+        if (messagesDiffer(mergedMessages, currentSession.messages)) {
+          const updated: SessionData = {
+            ...currentSession,
+            messages: mergedMessages,
+            updatedAt: Date.now()
+          };
+          queryClient.setQueryData<SessionData>(sessionQueryKey, updated);
+          if (user?.uid) {
+            persistSessionSnapshot(user.uid, activeCharacterId, targetLanguage, updated);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load older messages', error);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
 
   /**
    * 业务规则：根据压力选择提示词并生成头像；成功后本地回写会话
@@ -221,6 +345,9 @@ export function useChatController() {
     sessionError,
     handleGenerateAvatar,
     handleResetSession,
-    sendMessage
+    sendMessage,
+    loadOlderMessages,
+    hasMoreHistory: Boolean(historyCursor),
+    isHistoryLoading
   };
 }

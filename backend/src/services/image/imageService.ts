@@ -42,15 +42,15 @@ export class ImageService {
     metadata?: Record<string, unknown>;
   }): Promise<{ imageUrl: string; session: SessionData; avatar?: StoredAvatar }>
   {
-    const prompt = params.useImagePrompt
+    const resolvedPrompt = params.useImagePrompt
       ? this.findLatestImagePrompt(params.session) ?? params.prompt
       : params.prompt;
 
-    if (!prompt) {
+    if (!resolvedPrompt) {
       throw new Error('Prompt is required for image generation');
     }
 
-    const imageUrl = await this.llmClient.generateImage({ prompt, ratio: params.ratio });
+    const imageUrl = await this.llmClient.generateImage({ prompt: resolvedPrompt, ratio: params.ratio });
     if (!imageUrl) {
       throw new Error('Image API returned empty payload');
     }
@@ -68,7 +68,7 @@ export class ImageService {
         statusLabel,
         imageUrl,
         metadata: {
-          prompt,
+          prompt: resolvedPrompt,
           ratio: params.ratio,
           useImagePrompt: params.useImagePrompt ?? false,
           ...(params.metadata ?? {})
@@ -80,6 +80,11 @@ export class ImageService {
         statusLabel: storedAvatar.statusLabel
       });
     }
+
+    session = await this.sessionService.attachImageToLastAssistantMessage(session.sessionId, {
+      imageUrl,
+      imagePrompt: resolvedPrompt
+    });
 
     return { imageUrl, session, avatar: storedAvatar };
   }

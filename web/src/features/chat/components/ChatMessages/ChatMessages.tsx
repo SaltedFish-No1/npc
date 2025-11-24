@@ -13,6 +13,9 @@ type ChatMessagesProps = {
   avatar: string;
   state: CharacterState;
   isThinking?: boolean;
+  hasMoreHistory?: boolean;
+  isHistoryLoading?: boolean;
+  onLoadMore?: () => void;
 };
 
 export function ChatMessages({
@@ -20,7 +23,10 @@ export function ChatMessages({
   isBooting,
   avatar,
   state,
-  isThinking
+  isThinking,
+  hasMoreHistory = false,
+  isHistoryLoading = false,
+  onLoadMore
 }: ChatMessagesProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -31,13 +37,25 @@ export function ChatMessages({
 
   return (
     <div className={styles.messages}>
+      {hasMoreHistory && (
+        <button
+          type="button"
+          className={styles.loadMoreButton}
+          disabled={isHistoryLoading}
+          onClick={onLoadMore}
+        >
+          {isHistoryLoading
+            ? t('chat.messages.loadingHistory', 'Loading history…')
+            : t('chat.messages.loadOlder', 'Load older messages')}
+        </button>
+      )}
       {isBooting && <div>{t('state.loading')}</div>}
       {!isBooting &&
         messages.map((msg, idx) => {
           const isAssistant = msg.role === 'assistant';
           return (
             <div
-              key={`${idx}-${msg.role}`}
+              key={msg.messageId ?? `${msg.role}-${msg.createdAt ?? idx}-${idx}`}
               className={classNames(styles.messageRow, {
                 [styles.assistantRow]: isAssistant,
                 [styles.userRow]: !isAssistant

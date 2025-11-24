@@ -87,6 +87,7 @@ flowchart LR
 - **布局管理**：组织侧边栏、聊天面板和浮动组件
 - **状态管理**：管理 UI 状态、API Key 和系统日志
 - **数据加载**：通过 `useChatController` 拉取会话和处理数据流
+- **历史翻页**：ChatMessages 顶部“Load older messages”按钮会携带 `nextCursor` 调用 `/api/npc/sessions/:id/messages`
 - **国际化**：根据当前语言更新界面文案和标题
 - **Fallback 逻辑**：处理角色爆发状态和头像缺失的情况
 - **错误处理**：处理鉴权和会话加载失败的情况
@@ -207,7 +208,7 @@ flowchart LR
     A[前端] --> B[POST /api/npc/chat/stream]
     A --> C[POST /api/npc/images]
     A --> D[GET /api/npc/sessions/:id]
-    A --> E[GET /api/npc/sessions/:id/messages]
+    A --> E[GET /api/npc/sessions/:id/messages?limit&cursor]
     A --> F[GET /api/npc/memory-stream]
     B --> G[流式聊天]
     C --> H[图片生成]

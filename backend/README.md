@@ -52,7 +52,7 @@ backend/
 - `POST /api/npc/chat/stream` – SSE streaming chat turn
 - `POST /api/npc/images` – generate an image (optionally updating avatar)
 - `GET /api/npc/sessions/:id` – read a single session (metadata + recent messages)
-- `GET /api/npc/sessions/:id/messages?limit&offset` – paginated message history
+- `GET /api/npc/sessions/:id/messages?limit&cursor` – cursor-based message history (`items`, `nextCursor`)
 - `GET /api/npc/memory-stream?characterId&sessionId&limit&offset` – read long‑term memories
 
 All endpoints (except `/health`) require the `x-api-key: $NPC_GATEWAY_KEY` header (falls back to `LLM_API_AUTH_TOKEN`).
@@ -66,6 +66,11 @@ All endpoints (except `/health`) require the `x-api-key: $NPC_GATEWAY_KEY` heade
 - Tables: `sessions`, `session_messages`, `character_memory_stream`
 - Embeddings: `character_memory_embeddings` (pgvector), HNSW index if available
 - Flow: user input → embedding → Top‑K similarity search → inject into system prompt → write memory + embedding after the turn
+
+## Avatar & History Pipeline
+- Avatar generation now persists via `AvatarService`: generated images are stored in `character_avatars`, linked back to the session, and auto‑hydrated on next load (no more Picsum fallback once a real avatar exists).
+- Every assistant turn is stamped with `messageId`/`createdAt` metadata; when `/api/npc/images` runs it also calls `attachImageToLastAssistantMessage`, so the final image URL + prompt are stored alongside the response.
+- Use the cursor history API to hydrate chat logs lazily: request `/api/npc/sessions/:id/messages?limit=50`, render the newest `items`, and if `nextCursor` is non‑null pass it back to fetch older pages. This keeps activation payloads small while still allowing full transcript replay.
 
 ## Caching & Failover
 - Session cache (optional): Redis key `session:{id}`, TTL ~2h, read‑through/write‑through

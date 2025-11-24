@@ -19,7 +19,17 @@ const testConfig: AppConfig = {
   TEXT_MODEL_NAME: 'mock-text-model',
   IMG_MODEL_NAME: 'mock-image-model',
   SESSION_STORE: 'memory',
-  MOCK_LLM_RESPONSES: true
+  MOCK_LLM_RESPONSES: true,
+  DB_TYPE: 'postgres',
+  DB_URL: 'postgres://localhost:5432/npc-test',
+  DB_POOL_SIZE: 1,
+  DB_SCHEMA: 'public',
+  SESSION_STORAGE_STRATEGY: 'memory',
+  REDIS_URL: undefined,
+  EMBEDDING_MODEL_NAME: 'test-embed',
+  EMBEDDING_DIM: 1536,
+  RAG_TOP_K: 3,
+  RAG_SCORE_THRESHOLD: 0.2
 };
 
 describe('Headless NPC backend integration', () => {
@@ -103,6 +113,24 @@ describe('Headless NPC backend integration', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('imageUrl');
     expect(res.body.sessionVersion).toBeGreaterThan(1);
+  });
+
+  it('paginates chat history with cursor-based API', async () => {
+    const firstPage = await authedGet(`/api/npc/sessions/${sessionId}/messages`).query({ limit: 5 });
+    expect(firstPage.status).toBe(200);
+    expect(Array.isArray(firstPage.body.items)).toBe(true);
+    if (firstPage.body.items.length) {
+      expect(firstPage.body.items[0]).toHaveProperty('messageId');
+    }
+
+    if (firstPage.body.nextCursor) {
+      const secondPage = await authedGet(`/api/npc/sessions/${sessionId}/messages`).query({
+        limit: 5,
+        cursor: firstPage.body.nextCursor
+      });
+      expect(secondPage.status).toBe(200);
+      expect(Array.isArray(secondPage.body.items)).toBe(true);
+    }
   });
 
   it('rejects requests without API key', async () => {

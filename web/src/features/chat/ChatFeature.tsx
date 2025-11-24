@@ -49,7 +49,10 @@ export default function ChatFeature() {
     sessionError,
     handleGenerateAvatar,
     handleResetSession,
-    sendMessage
+    sendMessage,
+    loadOlderMessages,
+    hasMoreHistory,
+    isHistoryLoading
   } = useChatController();
 
   const isBroken = state.mode === 'BROKEN' || state.mode === '???%' || state.stress >= 99;
@@ -124,6 +127,9 @@ export default function ChatFeature() {
             avatar={avatar}
             state={state}
             isThinking={isThinking}
+            onLoadMore={hasMoreHistory ? loadOlderMessages : undefined}
+            hasMoreHistory={hasMoreHistory}
+            isHistoryLoading={isHistoryLoading}
           />
 
           <ChatInput

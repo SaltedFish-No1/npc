@@ -62,7 +62,8 @@ export const buildAppContext = (config: AppConfig): AppContext => {
     sessionStore as any,
     characterService,
     syncCreateCache(config),
-    avatarService
+    avatarService,
+    dbPromise
   );
   const promptEngine = new PromptEngine(path.resolve(baseDir, 'templates/prompts'));
   const llmClient = new LLMClient(config);
