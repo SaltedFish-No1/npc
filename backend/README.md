@@ -50,12 +50,29 @@ backend/
 - `POST /api/characters/:id/activate` – activate/initialize a character session
 - `POST /api/npc/chat` – non-streaming chat turn
 - `POST /api/npc/chat/stream` – SSE streaming chat turn
-- `POST /api/npc/images` – generate an image (optionally updating avatar)
+- `POST /api/npc/images` – generate an image by declaring intent/mood (backend owns prompts; can update avatar)
 - `GET /api/npc/sessions/:id` – read a single session (metadata + recent messages)
 - `GET /api/npc/sessions/:id/messages?limit&cursor` – cursor-based message history (`items`, `nextCursor`)
 - `GET /api/npc/memory-stream?characterId&sessionId&limit&offset` – read long‑term memories
 
 All endpoints (except `/health`) require the `x-api-key: $NPC_GATEWAY_KEY` header (falls back to `LLM_API_AUTH_TOKEN`).
+
+### Image generation payload
+
+`POST /api/npc/images` expects either `sessionId` or `characterId`, plus intent metadata instead of a free-form prompt:
+
+```jsonc
+{
+  "sessionId": "sess_xxx", // or characterId to lazily start a session
+  "intent": "avatar",      // "avatar" | "scene" (defaults to avatar)
+  "avatarMood": "broken",   // optional mood/label hint, used to pick config prompt
+  "useImagePrompt": false,   // set true only when replaying an assistant-authored prompt
+  "updateAvatar": true,
+  "metadata": { "trigger": "manual-ui" }
+}
+```
+
+Prompts are sourced from `config/characters/*.yaml > imagePrompts`, ensuring the backend keeps full control over model inputs.
 
 ## Testing & Quality
 - `pnpm typecheck` – strict TypeScript validation
@@ -69,7 +86,7 @@ All endpoints (except `/health`) require the `x-api-key: $NPC_GATEWAY_KEY` heade
 
 ## Avatar & History Pipeline
 - Avatar generation now persists via `AvatarService`: generated images are stored in `character_avatars`, linked back to the session, and auto‑hydrated on next load (no more Picsum fallback once a real avatar exists).
-- Every assistant turn is stamped with `messageId`/`createdAt` metadata; when `/api/npc/images` runs it also calls `attachImageToLastAssistantMessage`, so the final image URL + prompt are stored alongside the response.
+- Every assistant turn is stamped with `messageId`/`createdAt` metadata; when `/api/npc/images` runs it also calls `attachImageToLastAssistantMessage`, so the final image URL + resolved prompt are stored alongside the response (clients never send raw prompts).
 - Use the cursor history API to hydrate chat logs lazily: request `/api/npc/sessions/:id/messages?limit=50`, render the newest `items`, and if `nextCursor` is non‑null pass it back to fetch older pages. This keeps activation payloads small while still allowing full transcript replay.
 
 ## Caching & Failover

@@ -12,6 +12,10 @@ defaultState:
   mode: NORMAL
   avatarUrl: https://picsum.photos/800/600
 imageStyleGuidelines: "soft watercolor, cinematic lighting"
+imagePrompts:
+  avatar:
+    calm: Shigeo Kageyama portrait, Mob Psycho 100 style, anime style, bowl cut, blank expression, school uniform, soft lighting, high quality
+    overload: Shigeo Kageyama ???% mode, glowing white eyes, psychic aura explosion, floating hair, intense anime style, Mob Psycho 100 style, dark background, chaotic energy
 statuses:
   normal: "Shy Mob"
   broken: "???% Unleashed"

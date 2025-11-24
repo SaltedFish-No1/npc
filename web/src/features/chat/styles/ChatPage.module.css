@@ -108,16 +108,22 @@
 
 .floatingDebug {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  top: 24px;
+  left: 24px;
   z-index: 30;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.9);
   border: 1px solid var(--border);
   padding: 12px;
   color: var(--primary);
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  user-select: none;
+  touch-action: none;
+}
+
+.floatingDebug[data-dragging='true'] {
+  cursor: grabbing;
 }
 
 @media (max-width: 980px) {

@@ -88,6 +88,7 @@ flowchart LR
 - **状态管理**：管理 UI 状态、API Key 和系统日志
 - **数据加载**：通过 `useChatController` 拉取会话和处理数据流
 - **历史翻页**：ChatMessages 顶部“Load older messages”按钮会携带 `nextCursor` 调用 `/api/npc/sessions/:id/messages`
+- **调试浮层**：浮动 Debug 按钮与面板共用同一拖拽锚点，拖动其一即可整体移动并记忆位置
 - **国际化**：根据当前语言更新界面文案和标题
 - **Fallback 逻辑**：处理角色爆发状态和头像缺失的情况
 - **错误处理**：处理鉴权和会话加载失败的情况

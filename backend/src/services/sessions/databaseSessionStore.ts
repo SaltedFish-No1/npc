@@ -17,8 +17,8 @@ export class DatabaseSessionStore implements SessionStore {
       languagecode: string;
       characterstate: string | Record<string, unknown>;
       version: number;
-      createdat: number;
-      updatedat: number;
+      createdat: number | string;
+      updatedat: number | string;
     }>(
       'SELECT sessionId, characterId, languageCode, characterState, version, createdAt, updatedAt FROM sessions WHERE sessionId=$1',
       [sessionId]
@@ -26,12 +26,14 @@ export class DatabaseSessionStore implements SessionStore {
     if (s.rows.length === 0) return null;
     const row = s.rows[0];
     const msgs = await this.db.query<{
-      messageid: string;
+      messageid?: string;
+      messageId?: string;
       role: string;
       content: string;
       thought: string | null;
       attributes: string | Record<string, unknown> | null;
-      createdat: number;
+      createdat?: number | string;
+      createdAt?: number | string;
     }>(
       'SELECT messageId, role, content, thought, attributes, createdAt FROM session_messages WHERE sessionId=$1 ORDER BY createdAt ASC',
       [sessionId]
@@ -41,8 +43,8 @@ export class DatabaseSessionStore implements SessionStore {
       content: m.content,
       thought: m.thought ?? undefined,
       ...(parseAttributes(m.attributes)),
-      messageId: (m as any).messageid ?? m.messageId,
-      createdAt: (m as any).createdat ?? (m as any).createdAt
+      messageId: m.messageid ?? m.messageId ?? nanoid(),
+      createdAt: Number(m.createdat ?? m.createdAt ?? Date.now())
     }));
 
     return {
@@ -52,8 +54,8 @@ export class DatabaseSessionStore implements SessionStore {
       characterState: parseJson(row.characterstate),
       messages,
       version: row.version,
-      createdAt: row.createdat,
-      updatedAt: row.updatedat
+      createdAt: Number(row.createdat),
+      updatedAt: Number(row.updatedat)
     };
   }
 

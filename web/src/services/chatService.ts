@@ -171,7 +171,7 @@ export const streamChatCompletion = async (params: StreamChatParams): Promise<Ch
       characterId: params.characterId,
       languageCode: params.languageCode,
       messages: [{ role: 'user', content: params.message }],
-      stream: true
+      stream: false,
     }),
     signal: params.signal
   });
@@ -283,17 +283,25 @@ export const fetchSessionMessages = async (params: {
 };
 
 /**
- * 功能：触发图片生成（可选：使用会话 image_prompt、更新头像）
- * Description: Trigger image generation (optional: use session image_prompt, update avatar)
+ * 功能：触发图片生成；前端仅声明意图/情绪，提示由后端配置给出
+ * Description: Trigger backend-owned image generation by passing intent/mood hints only
+ * @param {Object} params
+ * @param {string} [params.sessionId] - 复用的会话 ID（可选）
+ * @param {string} params.characterId - 角色 ID
+ * @param {'avatar'|'scene'} [params.intent] - 生成意图，默认为 avatar
+ * @param {string} [params.avatarMood] - 头像情绪或标签提示
+ * @param {boolean} [params.useImagePrompt] - 复用最新助手 imagePrompt（通常 AI 主动绘图时使用）
+ * @param {boolean} [params.updateAvatar] - 是否让后端将结果写入头像
+ * @param {Record<string, unknown>} [params.metadata] - 额外追踪字段
+ * @param {AbortSignal} [params.signal] - 取消信号
  */
 export const generateImage = async (params: {
   sessionId?: string;
   characterId: string;
-  prompt?: string;
-  ratio?: '1:1' | '16:9' | '4:3';
+  intent?: 'avatar' | 'scene';
+  avatarMood?: string;
   useImagePrompt?: boolean;
   updateAvatar?: boolean;
-  statusLabel?: string;
   metadata?: Record<string, unknown>;
   signal?: AbortSignal;
 }) => {
@@ -302,11 +310,10 @@ export const generateImage = async (params: {
     body: JSON.stringify({
       sessionId: params.sessionId,
       characterId: params.characterId,
-      prompt: params.prompt,
-      ratio: params.ratio,
+      intent: params.intent,
+      avatarMood: params.avatarMood,
       useImagePrompt: params.useImagePrompt,
       updateAvatar: params.updateAvatar,
-      statusLabel: params.statusLabel,
       metadata: params.metadata
     }),
     signal: params?.signal

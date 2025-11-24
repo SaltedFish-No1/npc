@@ -1,6 +1,6 @@
 /**
  * 文件：backend/src/routes/images.ts
- * 功能描述：图片生成接口路由，支持使用提示词或会话中的 image_prompt | Description: Image generation API route using prompt or session image_prompt
+ * 功能描述：图片生成接口路由，仅接受意图/情绪，由后端根据角色配置生成提示 | Description: Image generation API that accepts intent + mood and resolves prompts server-side
  * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 Fastify、Zod、图片与会话服务；被服务器注册
@@ -14,11 +14,10 @@ const imageBodySchema = z
   .object({
     sessionId: z.string().optional(),
     characterId: z.string().optional(),
-    prompt: z.string().optional(),
-    ratio: z.enum(['1:1', '16:9', '4:3']).optional(),
+    intent: z.enum(['avatar', 'scene']).default('avatar'),
+    avatarMood: z.string().optional(),
     useImagePrompt: z.boolean().optional(),
     updateAvatar: z.boolean().optional(),
-    statusLabel: z.string().optional(),
     metadata: z.record(z.any()).optional()
   })
   .refine((data) => data.sessionId || data.characterId, {
@@ -36,7 +35,7 @@ type ImageBody = z.infer<typeof imageBodySchema>;
  * @returns {void} 无返回值 | No return value
  * @example
  * // 请求头需包含：x-api-key
- * // POST /api/npc/images  Body: { sessionId|characterId, prompt?, ratio?, useImagePrompt?, updateAvatar? }
+ * // POST /api/npc/images  Body: { sessionId|characterId, intent?, avatarMood?, useImagePrompt?, updateAvatar? }
  */
 export const registerImageRoutes = (app: FastifyInstance, ctx: AppContext) => {
   app.post(
@@ -52,11 +51,10 @@ export const registerImageRoutes = (app: FastifyInstance, ctx: AppContext) => {
       // English: If `useImagePrompt` is true, prefer session's AI-generated image_prompt
       const result = await ctx.services.image.handleGeneration({
         session,
-        prompt: body.prompt,
-        ratio: body.ratio,
+        intent: body.intent,
+        avatarMood: body.avatarMood,
         useImagePrompt: body.useImagePrompt,
         updateAvatar: body.updateAvatar,
-        statusLabel: body.statusLabel,
         metadata: body.metadata
       });
 

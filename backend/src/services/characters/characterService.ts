@@ -23,6 +23,13 @@ const characterProfileSchema = z.object({
   defaultGreeting: z.string(),
   defaultState: characterStateSchema,
   imageStyleGuidelines: z.string(),
+  imagePrompts: z
+    .object({
+      avatar: z.record(z.string()).optional(),
+      scene: z.record(z.string()).optional(),
+      fallback: z.string().optional()
+    })
+    .optional(),
   statuses: z.record(z.string()),
   languages: z.array(z.string()),
   capabilities: z.object({ text: z.boolean(), image: z.boolean() }),

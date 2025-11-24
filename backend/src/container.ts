@@ -70,7 +70,7 @@ export const buildAppContext = (config: AppConfig): AppContext => {
   // 暂时禁用记忆服务以避免嵌入模型错误
   // const memoryService = new MemoryService(config, syncGetDB(), llmClient);
   const chatService = new ChatService(promptEngine, sessionService, characterService, llmClient, avatarService);
-  const imageService = new ImageService(llmClient, sessionService, avatarService);
+  const imageService = new ImageService(llmClient, sessionService, avatarService, characterService);
 
   return {
     config,

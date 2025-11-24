@@ -34,10 +34,6 @@ export type CharacterProfile = {
     trustLabel: string;
   };
   defaultGreeting: string;
-  avatarPrompts: {
-    calm: string;
-    overload: string;
-  };
 };
 
 export type UserProfile = {
@@ -100,12 +96,7 @@ const mobProfile: CharacterProfile = {
     stressLabel: 'Explosion Progress',
     trustLabel: 'Social Battery'
   },
-  defaultGreeting: "Um... hello. I'm Shigeo. Please don't make me use my powers.",
-  avatarPrompts: {
-    overload:
-      'Shigeo Kageyama ???% mode, glowing white eyes, psychic aura explosion, floating hair, intense anime style, Mob Psycho 100 style, dark background, chaotic energy',
-    calm: 'Shigeo Kageyama portrait, Mob Psycho 100 style, anime style, bowl cut, blank expression, school uniform, soft lighting, high quality'
-  }
+  defaultGreeting: "Um... hello. I'm Shigeo. Please don't make me use my powers."
 };
 
 const reigenProfile: CharacterProfile = {
@@ -128,12 +119,7 @@ const reigenProfile: CharacterProfile = {
     stressLabel: 'Business Pressure',
     trustLabel: 'Client Confidence'
   },
-  defaultGreeting: 'Welcome to Spirits and Such Consultation Office. How can I help?',
-  avatarPrompts: {
-    overload:
-      'Arataka Reigen dramatic pose, golden light, motivational aura, anime illustration, dynamic angle, sparkling background',
-    calm: 'Arataka Reigen portrait, smug smile, suit and tie, studio lighting, Mob Psycho inspired art style'
-  }
+  defaultGreeting: 'Welcome to Spirits and Such Consultation Office. How can I help?'
 };
 
 const reigenCharacterModelTemplate: UnifiedCharacterModel = {
@@ -292,12 +278,7 @@ const obitoProfile: CharacterProfile = {
     stressLabel: 'Hatred Surge',
     trustLabel: 'Mask Integrity'
   },
-  defaultGreeting: '...Call me Tobi. The mask hides what you are not ready to face.',
-  avatarPrompts: {
-    overload:
-      'Uchiha Obito engulfed in Ten-Tails chakra, Mangekyo + Rinnegan blazing, swirling space-time distortion, crimson moon backdrop, cinematic anime art',
-    calm: 'Uchiha Obito in Akatsuki cloak, orange spiral mask, dusk lightning, subtle Sharingan glow, anime illustration, high detail'
-  }
+  defaultGreeting: '...Call me Tobi. The mask hides what you are not ready to face.'
 };
 
 const obitoCharacterModelTemplate: UnifiedCharacterModel = {

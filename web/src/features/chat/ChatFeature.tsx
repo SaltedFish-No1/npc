@@ -6,6 +6,7 @@
  * 依赖说明：依赖 Zustand stores、i18n、控制器与各子组件
  */
 import { useEffect, useMemo } from 'react';
+import { useDraggable } from '@/hooks/useDraggable';
 import { Bug } from 'lucide-react';
 import styles from './styles/ChatPage.module.css';
 import { useUIStore } from '@/stores/uiStore';
@@ -23,6 +24,13 @@ import { ChatInput } from './components/ChatInput/ChatInput';
 import { DebugPanel } from './components/DebugPanel/DebugPanel';
 import { SettingsModal } from './components/SettingsModal/SettingsModal';
 import { ChatHeader } from './components/ChatHeader/ChatHeader';
+
+const DEBUG_PANEL_SIZE = { width: 360, height: 520 } as const;
+const DEBUG_BUTTON_SIZE = { width: 56, height: 56 } as const;
+const DEBUG_BUTTON_OFFSET = {
+  x: DEBUG_PANEL_SIZE.width - DEBUG_BUTTON_SIZE.width / 2,
+  y: DEBUG_PANEL_SIZE.height + 24
+};
 
 /**
  * 功能：渲染聊天页面并处理语言切换、头像占位与调试面板
@@ -73,6 +81,23 @@ export default function ChatFeature() {
     [currentLanguage]
   );
 
+  const initialPanelPosition = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return { x: 24, y: 120 };
+    }
+    const margin = 24;
+    const x = Math.max(margin, window.innerWidth - DEBUG_PANEL_SIZE.width - margin);
+    const y = Math.max(80, window.innerHeight - DEBUG_PANEL_SIZE.height - 140);
+    return { x, y };
+  }, []);
+
+  const debugDock = useDraggable({
+    storageKey: 'npc-debug-dock',
+    defaultPosition: initialPanelPosition,
+    surfaceSize: DEBUG_PANEL_SIZE,
+    boundsPadding: 12
+  });
+
   useEffect(() => {
     if (npcLocalization?.appTitle) {
       document.title = npcLocalization.appTitle;
@@ -96,6 +121,11 @@ export default function ChatFeature() {
   const handleLanguageChange = async (code: string) => {
     if (code === currentLanguage) return;
     await i18n.changeLanguage(code);
+  };
+
+  const handleToggleDebug = () => {
+    if (debugDock.isDragging) return;
+    toggleDebug();
   };
 
   return (
@@ -142,7 +172,17 @@ export default function ChatFeature() {
         </section>
       </div>
 
-      <button className={styles.floatingDebug} onClick={toggleDebug} aria-label="debug-toggle">
+      <button
+        className={styles.floatingDebug}
+        style={{
+          left: debugDock.position.x + DEBUG_BUTTON_OFFSET.x,
+          top: debugDock.position.y + DEBUG_BUTTON_OFFSET.y
+        }}
+        onPointerDown={debugDock.handlePointerDown}
+        onClick={handleToggleDebug}
+        data-dragging={debugDock.isDragging}
+        aria-label="debug-toggle"
+      >
         <Bug size={18} />
       </button>
 
@@ -152,6 +192,11 @@ export default function ChatFeature() {
         systemLogs={systemLogs}
         state={state}
         draftImagePrompt={draftImagePrompt}
+        draggableProps={{
+          position: debugDock.position,
+          onPointerDown: debugDock.handlePointerDown,
+          isDragging: debugDock.isDragging
+        }}
       />
 
       <SettingsModal isOpen={settingsOpen} onClose={toggleSettings} />

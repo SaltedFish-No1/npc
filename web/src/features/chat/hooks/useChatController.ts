@@ -15,7 +15,7 @@ import { characterStateSchema, ChatMessage, SessionData } from '@/schemas/chat';
 import { streamChatCompletion, generateImage, fetchSessionMessages } from '@/services/chatService';
 import { persistSessionSnapshot, resetSession } from '@/services/sessionService';
 import { useTranslation } from 'react-i18next';
-import { CHARACTER_PROFILE, getActiveNpcId } from '@/config/characterProfile';
+import { getActiveNpcId } from '@/config/characterProfile';
 import { normalizeLanguageCode } from '@/config/i18nConfig';
 
 const defaultState = characterStateSchema.parse({});
@@ -179,26 +179,21 @@ export function useChatController() {
   };
 
   /**
-   * 业务规则：根据压力选择提示词并生成头像；成功后本地回写会话
-   * Description: Pick mood prompt by stress and generate avatar; then persist session locally
+   * 业务规则：根据当前状态推送头像意图，由后端统一提示词并刷新本地缓存
+   * Description: Ask backend to generate an avatar using intent/mood hints and sync local session cache afterwards
    */
   const handleGenerateAvatar = async () => {
     if (!user?.uid || !session) return;
     setIsGenerating(true);
-    const moodPrompt =
-      state.stress >= 90
-        ? CHARACTER_PROFILE.avatarPrompts.overload
-        : CHARACTER_PROFILE.avatarPrompts.calm;
-    const statusLabel = state.avatarLabel ?? state.mode.toLowerCase();
+    const avatarMood = state.avatarLabel ?? state.mode?.toLowerCase() ?? 'default';
     try {
       addLog({ source: 'GEN_IMG', message: 'Generating avatar...' });
       const imageResponse = await generateImage({
         sessionId: session.sessionId,
         characterId: activeCharacterId,
-        prompt: moodPrompt,
-        ratio: '1:1',
+        intent: 'avatar',
+        avatarMood,
         updateAvatar: true,
-        statusLabel,
         metadata: { trigger: 'manual-ui', stress: state.stress }
       });
       const currentSession = queryClient.getQueryData<SessionData>(sessionQueryKey) ?? session;
@@ -281,8 +276,9 @@ export function useChatController() {
           const imageResponse = await generateImage({
             sessionId: ai.sessionId,
             characterId: activeCharacterId,
-            prompt: ai.imagePrompt,
-            ratio: '16:9'
+            intent: 'scene',
+            useImagePrompt: true,
+            metadata: { trigger: 'assistant-image', imagePrompt: ai.imagePrompt }
           });
           if (imageResponse.imageUrl) {
             assistantMessage = {

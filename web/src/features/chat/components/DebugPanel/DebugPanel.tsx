@@ -4,6 +4,7 @@ import styles from './DebugPanel.module.css';
 import { CharacterState } from '@/schemas/chat';
 import { SystemLog } from '@/stores/chatStore';
 import { useTranslation } from 'react-i18next';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 type DebugPanelProps = {
   isOpen: boolean;
@@ -11,6 +12,11 @@ type DebugPanelProps = {
   systemLogs: SystemLog[];
   state: CharacterState;
   draftImagePrompt?: string;
+  draggableProps?: {
+    position: { x: number; y: number };
+    onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    isDragging: boolean;
+  };
 };
 
 export function DebugPanel({
@@ -18,14 +24,24 @@ export function DebugPanel({
   onClose,
   systemLogs,
   state,
-  draftImagePrompt
+  draftImagePrompt,
+  draggableProps
 }: DebugPanelProps) {
   const { t } = useTranslation();
   if (!isOpen) return null;
 
+  const floatingStyle = draggableProps
+    ? { left: draggableProps.position.x, top: draggableProps.position.y }
+    : undefined;
+
   return (
-    <div className={styles.debugPanel}>
-      <div className={styles.debugHeader}>
+    <div className={styles.debugPanel} style={floatingStyle}>
+      <div
+        className={classNames(styles.debugHeader, {
+          [styles.dragging]: draggableProps?.isDragging
+        })}
+        onPointerDown={draggableProps?.onPointerDown}
+      >
         <span>
           <Terminal size={14} /> {t('chat.debug.panelTitle')}
         </span>

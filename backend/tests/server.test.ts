@@ -106,8 +106,7 @@ describe('Headless NPC backend integration', () => {
   it('generates images and updates session state', async () => {
     const res = await authedPost('/api/npc/images').send({
       sessionId,
-      prompt: 'Test watercolor scene',
-      ratio: '1:1',
+      intent: 'avatar',
       updateAvatar: true
     });
     expect(res.status).toBe(200);

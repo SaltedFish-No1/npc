@@ -87,7 +87,7 @@ export type AppContext = {
 5. LLMClient：创建 LLM 服务客户端
 6. MemoryService：初始化向量检索服务
 7. ChatService：集成 PromptEngine、SessionService、CharacterService、LLMClient 和 MemoryService
-8. ImageService：集成 LLMClient 和 SessionService
+8. ImageService：集成 LLMClient、SessionService、AvatarService 与 CharacterService（用于解析后端受控的 image prompts）
 
 ## 路由系统与鉴权
 
@@ -113,7 +113,7 @@ app.addHook('onRequest', async (request, reply) => {
 - `POST /api/characters/:id/activate`：激活角色会话
 - `POST /api/npc/chat`：非流式聊天
 - `POST /api/npc/chat/stream`：SSE 流式聊天
-- `POST /api/npc/images`：图片生成
+- `POST /api/npc/images`：图片生成（仅接受 intent/mood，由后端解析提示词）
 - `GET /api/npc/sessions/:id`：会话详情
 - `GET /api/npc/sessions/:id/messages?limit&cursor`：会话消息游标分页，返回 `items` + `nextCursor`
 - `GET /api/npc/memory-stream`：记忆流
@@ -177,7 +177,7 @@ flowchart LR
 ### 头像与聊天历史管线
 
 1. `/api/npc/images` 生成的图片始终写入 `character_avatars` 表，并调用 `SessionService.updateAvatar` 保证下次激活立即复用。
-2. 同一流程会通过 `attachImageToLastAssistantMessage` 将 `imageUrl` 与 `imagePrompt` 贴在最新的助手消息上，前端无需额外轮询即可渲染图像。
+2. 同一流程会通过 `attachImageToLastAssistantMessage` 将 `imageUrl` 与 **后端解析出的** `imagePrompt` 贴在最新的助手消息上，前端无需额外轮询也无需传递提示词即可渲染图像。
 3. `session_messages` 表为每条消息记录 `messageId`/`createdAt`，`/api/npc/sessions/:id/messages` 使用游标向后翻页，前端可在滚动时带上 `nextCursor` 继续拉取更久远的历史，激活接口只需返回最近几条即可。
 
 ```mermaid
