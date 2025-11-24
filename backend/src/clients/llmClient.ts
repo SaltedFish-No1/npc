@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/clients/llmClient.ts
  * 功能描述：对接上游 LLM 文本/图片接口，含流式解析与健壮性处理 | Description: Upstream LLM client for text/image with streaming parsing and robustness
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖环境配置与 JSON 工具、Zod 模型
  */
@@ -209,6 +209,31 @@ export class LLMClient {
 
     const data = await response.json();
     return data.data?.[0]?.url ?? '';
+  }
+
+  /**
+   * 功能：生成文本嵌入向量
+   * Description: Create embedding vector for input text
+   */
+  async createEmbedding(input: string): Promise<number[]> {
+    if (this.config.MOCK_LLM_RESPONSES) {
+      // 生成固定长度的随机嵌入用于本地测试
+      return Array.from({ length: this.config.EMBEDDING_DIM }, () => Math.random());
+    }
+    const model = this.config.EMBEDDING_MODEL_NAME ?? 'text-embedding-3-large';
+    const response = await fetch(`${this.config.LLM_API_BASE}/embeddings`, {
+      method: 'POST',
+      headers: this.buildHeaders(),
+      body: JSON.stringify({ model, input })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Embeddings API error: ${errText}`);
+    }
+    const data = await response.json();
+    const vector = data.data?.[0]?.embedding;
+    if (!Array.isArray(vector)) throw new Error('Invalid embedding payload');
+    return vector as number[];
   }
 
   /**

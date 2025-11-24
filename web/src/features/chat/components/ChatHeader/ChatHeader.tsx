@@ -9,14 +9,14 @@ import {
   getNpcOptions
 } from '@/config/characterProfile';
 
-interface ChatHeaderProps {
+type ChatHeaderProps = {
   isBooting: boolean;
   messageCount: number;
   currentLanguage: string;
   onLanguageChange: (code: string) => void;
   appSubtitle?: string;
   onNpcChange?: (id: string) => Promise<void> | void;
-}
+};
 
 export function ChatHeader({
   isBooting,
@@ -71,7 +71,9 @@ export function ChatHeader({
 
       <div className={styles.headerMeta}>
         <div className={styles.statusLine}>
-          {isBooting ? t('chat.header.connecting') : t('chat.header.events', { count: messageCount })}
+          {isBooting
+            ? t('chat.header.connecting')
+            : t('chat.header.events', { count: messageCount })}
         </div>
         <label className={styles.languageLabel}>
           <span>{t('chat.header.language')}</span>

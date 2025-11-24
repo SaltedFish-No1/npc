@@ -5,15 +5,21 @@ import { CharacterState } from '@/schemas/chat';
 import { SystemLog } from '@/stores/chatStore';
 import { useTranslation } from 'react-i18next';
 
-interface DebugPanelProps {
+type DebugPanelProps = {
   isOpen: boolean;
   onClose: () => void;
   systemLogs: SystemLog[];
   state: CharacterState;
   draftImagePrompt?: string;
-}
+};
 
-export function DebugPanel({ isOpen, onClose, systemLogs, state, draftImagePrompt }: DebugPanelProps) {
+export function DebugPanel({
+  isOpen,
+  onClose,
+  systemLogs,
+  state,
+  draftImagePrompt
+}: DebugPanelProps) {
   const { t } = useTranslation();
   if (!isOpen) return null;
 

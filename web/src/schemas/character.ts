@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/schemas/character.ts
  * 功能描述：统一角色模型（Zod）与模板工具 | Description: Unified character model (Zod) and template utilities
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 zod 与 JSON deepClone
  */
@@ -213,8 +213,8 @@ const mobCharacterModelTemplate: UnifiedCharacterModel = {
     }
   ],
   knowledge_graph: {
-    '灵幻的真实实力': 0.6,
-    '城市中的灵异事件': 0.4
+    灵幻的真实实力: 0.6,
+    城市中的灵异事件: 0.4
   },
   genealogy: {
     parents: ['character_mob_mother', 'character_mob_father'],
@@ -254,16 +254,10 @@ const mobCharacterModelTemplate: UnifiedCharacterModel = {
   },
   state_goals: {
     current_job: '灵能咨询所助手',
-    long_term_goals: [
-      { goal: '掌控情绪', description: '在保持冷静的同时行善' }
-    ],
-    short_term_goals: [
-      { goal: '帮助新的委托人', description: '解决灵异事件并保护普通人' }
-    ],
+    long_term_goals: [{ goal: '掌控情绪', description: '在保持冷静的同时行善' }],
+    short_term_goals: [{ goal: '帮助新的委托人', description: '解决灵异事件并保护普通人' }],
     emotional_state: '平静但紧绷',
-    active_plans: [
-      { plan_id: 'plan_support_reigen', description: '协助灵幻处理新的委托' }
-    ]
+    active_plans: [{ plan_id: 'plan_support_reigen', description: '协助灵幻处理新的委托' }]
   }
 };
 

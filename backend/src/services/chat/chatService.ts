@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/services/chat/chatService.ts
  * 功能描述：单次对话处理服务，负责提示词构建、历史截取、LLM 调用与会话更新 | Description: Handles a chat turn: builds system prompt, slices history, calls LLM, updates session
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 PromptEngine、SessionService、CharacterService、LLMClient 与 Zod 模型
  */
@@ -10,6 +10,7 @@ import { SessionService } from '../sessions/sessionService.js';
 import { LLMClient } from '../../clients/llmClient.js';
 import { CharacterService } from '../characters/characterService.js';
 import { AIResponse, ChatMessage, SessionData } from '../../schemas/chat.js';
+import { MemoryService } from '../memory/memoryService.js';
 
 /**
  * 历史窗口大小：仅保留最近 10 条用户/助手消息用于上下文
@@ -26,7 +27,8 @@ export class ChatService {
     private readonly promptEngine: PromptEngine,
     private readonly sessionService: SessionService,
     private readonly characterService: CharacterService,
-    private readonly llmClient: LLMClient
+    private readonly llmClient: LLMClient,
+    private readonly memoryService?: MemoryService
   ) {}
 
   /**
@@ -58,6 +60,19 @@ export class ChatService {
       languageCode: params.session.languageCode
     });
 
+    // 检索长期记忆并注入系统提示
+    let augmentedSystemPrompt = systemPrompt;
+    if (this.memoryService) {
+      const memories = await this.memoryService.searchByQuery(
+        params.session.characterId,
+        latestUserMessage.content
+      );
+      if (memories.length) {
+        const bullets = memories.map((m) => `- (${m.type}) ${m.content}`).join('\n');
+        augmentedSystemPrompt = `${systemPrompt}\n\n[Long-term memories]\n${bullets}`;
+      }
+    }
+
     // 复杂算法：历史截取与角色过滤
     // 中文：仅保留最近 N 条且角色为 user/assistant 的消息，保证上下文相关性与长度控制
     // English: Keep last N messages with role user/assistant to control context length and relevance
@@ -67,7 +82,7 @@ export class ChatService {
       .map((msg) => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
 
     const completionPayload = {
-      systemPrompt,
+      systemPrompt: augmentedSystemPrompt,
       messages: [...history, { role: 'user' as const, content: latestUserMessage.content }]
     };
 
@@ -98,6 +113,25 @@ export class ChatService {
       assistantMessage,
       characterState: updatedState
     });
+
+    // 将本次对话生成记忆（启发式），并写入嵌入
+    if (this.memoryService) {
+      const importance = Math.min(10, Math.max(1, Math.round(Math.abs(aiResponse.stress_change + aiResponse.trust_change) * 5)));
+      const contentForMemory = aiResponse.thought?.trim() || aiResponse.response.trim();
+      if (contentForMemory.length > 0) {
+        const id = `${updatedSession.characterId}:${updatedSession.sessionId}:${updatedSession.version}`;
+        await this.memoryService.createEntry({
+          id,
+          characterId: updatedSession.characterId,
+          sessionId: updatedSession.sessionId,
+          type: 'INSIGHT',
+          content: contentForMemory,
+          importance,
+          createdAt: Date.now()
+        });
+        await this.memoryService.upsertEmbedding(id, contentForMemory);
+      }
+    }
 
     return {
       session: updatedSession,

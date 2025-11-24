@@ -30,8 +30,8 @@ pnpm-debug.log*
 # Misc
 *.local
 
-# docs
-docs/
+# top-layer docs
+./docs/*
 
 # backend service
 backend/node_modules/

@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/services/sessions/sessionService.ts
  * 功能描述：会话生命周期管理（创建/读取/追加回合/头像更新） | Description: Manage session lifecycle: create/get/append turns/update avatar
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 SessionStore、CharacterService 与模型
  */
@@ -10,6 +10,7 @@ import { nanoid } from 'nanoid';
 import { CharacterProfile, CharacterService } from '../characters/characterService.js';
 import { CharacterState, ChatMessage, SessionData } from '../../schemas/chat.js';
 import { SessionStore } from './sessionStore.js';
+import type { SessionCache } from '../../cache/sessionCache.js';
 
 const DEFAULT_LANGUAGE = 'en';
 
@@ -20,7 +21,8 @@ const DEFAULT_LANGUAGE = 'en';
 export class SessionService {
   constructor(
     private readonly store: SessionStore,
-    private readonly characterService: CharacterService
+    private readonly characterService: CharacterService,
+    private readonly cache?: SessionCache | null
   ) {}
 
   /**
@@ -40,13 +42,16 @@ export class SessionService {
     const requestedLanguage = (params.languageCode ?? DEFAULT_LANGUAGE).toLowerCase();
 
     if (params.sessionId) {
-      const existing = await this.store.get(params.sessionId);
+      const cached = await this.cache?.get(params.sessionId);
+      const existing = cached ?? (await this.store.get(params.sessionId));
       if (existing) {
         // 业务关键逻辑：语言切换时，删除旧会话并重建，避免跨语言历史污染
         if (existing.languageCode !== requestedLanguage) {
           await this.store.delete(existing.sessionId);
+          await this.cache?.delete(existing.sessionId);
         } else {
           await this.store.touch(existing.sessionId);
+          await this.cache?.touch(existing.sessionId);
           return existing;
         }
       }
@@ -59,7 +64,17 @@ export class SessionService {
     const profile = this.characterService.getCharacterOrThrow(params.characterId);
     const session = this.buildInitialSession(profile, requestedLanguage);
     await this.store.set(session);
+    await this.cache?.set(session);
     return session;
+  }
+
+  /**
+   * 功能：只读获取会话（不触发创建），优先读取缓存 | Description: Read-only session fetch (no creation), prefers cache
+   */
+  async getSessionById(sessionId: string): Promise<SessionData | null> {
+    const cached = await this.cache?.get(sessionId);
+    if (cached) return cached;
+    return this.store.get(sessionId);
   }
 
   /**
@@ -98,6 +113,7 @@ export class SessionService {
     };
 
     await this.store.set(updated);
+    await this.cache?.set(updated);
     return updated;
   }
 
@@ -124,6 +140,7 @@ export class SessionService {
       }
     };
     await this.store.set(updated);
+    await this.cache?.set(updated);
     return updated;
   }
 

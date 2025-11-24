@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/schemas/chat.ts
  * 功能描述：后端 Zod 模型定义（角色状态、聊天消息、AI 响应、会话数据） | Description: Backend Zod schemas for character state, chat message, AI response, session data
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 zod；被服务与路由用于校验
  */

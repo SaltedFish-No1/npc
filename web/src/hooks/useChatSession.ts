@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/hooks/useChatSession.ts
  * 功能描述：会话加载与订阅 Hook（React Query + 实时订阅） | Description: Chat session hook with React Query and live subscriptions
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖前端 session 服务
  */

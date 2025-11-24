@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/config/characterProfile.ts
  * 功能描述：前端角色预设、头像与本地化配置 | Description: Frontend character presets, avatar fallbacks and localization config
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖角色模型与浏览器 localStorage
  */
@@ -105,8 +105,7 @@ const mobProfile: CharacterProfile = {
   avatarPrompts: {
     overload:
       'Shigeo Kageyama ???% mode, glowing white eyes, psychic aura explosion, floating hair, intense anime style, Mob Psycho 100 style, dark background, chaotic energy',
-    calm:
-      'Shigeo Kageyama portrait, Mob Psycho 100 style, anime style, bowl cut, blank expression, school uniform, soft lighting, high quality'
+    calm: 'Shigeo Kageyama portrait, Mob Psycho 100 style, anime style, bowl cut, blank expression, school uniform, soft lighting, high quality'
   }
 };
 
@@ -134,8 +133,7 @@ const reigenProfile: CharacterProfile = {
   avatarPrompts: {
     overload:
       'Arataka Reigen dramatic pose, golden light, motivational aura, anime illustration, dynamic angle, sparkling background',
-    calm:
-      'Arataka Reigen portrait, smug smile, suit and tie, studio lighting, Mob Psycho inspired art style'
+    calm: 'Arataka Reigen portrait, smug smile, suit and tie, studio lighting, Mob Psycho inspired art style'
   }
 };
 
@@ -207,9 +205,9 @@ const reigenCharacterModelTemplate: UnifiedCharacterModel = {
     }
   ],
   knowledge_graph: {
-    '城区灵异情报': 0.55,
-    '客户心理': 0.78,
-    'Mob情绪状态': 0.72
+    城区灵异情报: 0.55,
+    客户心理: 0.78,
+    Mob情绪状态: 0.72
   },
   genealogy: {
     parents: ['character_reigen_parent_1', 'character_reigen_parent_2'],
@@ -267,16 +265,10 @@ const reigenCharacterModelTemplate: UnifiedCharacterModel = {
   },
   state_goals: {
     current_job: '灵能咨询所所长',
-    long_term_goals: [
-      { goal: '成为知名灵能力者', description: '让事务所在全国连锁化' }
-    ],
-    short_term_goals: [
-      { goal: '保持事务所盈利', description: '每周至少接下两个委托' }
-    ],
+    long_term_goals: [{ goal: '成为知名灵能力者', description: '让事务所在全国连锁化' }],
+    short_term_goals: [{ goal: '保持事务所盈利', description: '每周至少接下两个委托' }],
     emotional_state: '油滑但真诚',
-    active_plans: [
-      { plan_id: 'plan_train_mob', description: '引导Mob发挥力量同时保持善良' }
-    ]
+    active_plans: [{ plan_id: 'plan_train_mob', description: '引导Mob发挥力量同时保持善良' }]
   }
 };
 
@@ -286,7 +278,8 @@ const obitoProfile: CharacterProfile = {
   tagline: "Masked Architect of the Moon's Eye",
   defaultName: 'Uchiha Obito',
   franchise: 'Naruto Shippuden',
-  contextLine: 'Current Context: Balancing the Tobi persona while pursuing the Eye of the Moon Plan.',
+  contextLine:
+    'Current Context: Balancing the Tobi persona while pursuing the Eye of the Moon Plan.',
   imageStyleGuidelines:
     'Naruto Shippuden anime film aesthetic, high-contrast lighting, smoky particles, crimson moon backdrops, dramatic motion blur',
   fallbackAvatars: buildFallbackAvatars('Obito Uchiha'),
@@ -304,8 +297,7 @@ const obitoProfile: CharacterProfile = {
   avatarPrompts: {
     overload:
       'Uchiha Obito engulfed in Ten-Tails chakra, Mangekyo + Rinnegan blazing, swirling space-time distortion, crimson moon backdrop, cinematic anime art',
-    calm:
-      'Uchiha Obito in Akatsuki cloak, orange spiral mask, dusk lightning, subtle Sharingan glow, anime illustration, high detail'
+    calm: 'Uchiha Obito in Akatsuki cloak, orange spiral mask, dusk lightning, subtle Sharingan glow, anime illustration, high detail'
   }
 };
 
@@ -321,8 +313,7 @@ const obitoCharacterModelTemplate: UnifiedCharacterModel = {
   appearance: {
     generation_seed: 'obito_masked_seed_v1',
     descriptive_tags: ['橙色面具', '晓组织', '单眼写轮眼'],
-    portrait_setting:
-      '夜色中的晓组织披风身影，面具后仅显露出发光的写轮眼，周围带有空间漩涡残影。',
+    portrait_setting: '夜色中的晓组织披风身影，面具后仅显露出发光的写轮眼，周围带有空间漩涡残影。',
     portrait_setting_url: 'https://example.com/portraits/obito_default.png',
     avatar_urls: {
       masked: 'https://example.com/avatars/obito_masked.png',
@@ -378,9 +369,9 @@ const obitoCharacterModelTemplate: UnifiedCharacterModel = {
     }
   ],
   knowledge_graph: {
-    '木叶忍者村情报': 0.92,
-    '晓组织资源': 0.75,
-    '写轮眼秘术': 0.97
+    木叶忍者村情报: 0.92,
+    晓组织资源: 0.75,
+    写轮眼秘术: 0.97
   },
   genealogy: {
     parents: ['character_obito_parent_1', 'character_obito_parent_2'],
@@ -453,17 +444,13 @@ const obitoCharacterModelTemplate: UnifiedCharacterModel = {
   },
   state_goals: {
     current_job: '晓组织暗部指挥',
-    long_term_goals: [
-      { goal: '完成月之眼计划', description: '创造一个没有背叛与痛苦的梦境世界' }
-    ],
+    long_term_goals: [{ goal: '完成月之眼计划', description: '创造一个没有背叛与痛苦的梦境世界' }],
     short_term_goals: [
       { goal: '收集尾兽', description: '指导晓组织捕获剩余尾兽' },
       { goal: '维持面具身份', description: '保持“带土”与“阿飞”的伪装' }
     ],
     emotional_state: '冷静而偏执',
-    active_plans: [
-      { plan_id: 'plan_eye_of_moon', description: '同步长门与斑的行动时间表' }
-    ]
+    active_plans: [{ plan_id: 'plan_eye_of_moon', description: '同步长门与斑的行动时间表' }]
   }
 };
 
@@ -537,7 +524,7 @@ const resolveActiveNpcId = (): string => {
     }
   }
 
-  const envProfileId = import.meta.env.VITE_NPC_PROFILE;
+  const envProfileId = import.meta.env.VITE_NPC_PROFILE as string | undefined;
   if (envProfileId && envProfileId in NPC_PRESETS) {
     return envProfileId;
   }
@@ -585,7 +572,8 @@ export const getNpcOptions = (): NpcOption[] =>
  * 功能：按ID获取 NPC 预设（缺省回退）
  * Description: Get NPC preset by ID with default fallback
  */
-export const getNpcPreset = (id: string): NpcPreset => NPC_PRESETS[id] ?? NPC_PRESETS[DEFAULT_NPC_ID];
+export const getNpcPreset = (id: string): NpcPreset =>
+  NPC_PRESETS[id] ?? NPC_PRESETS[DEFAULT_NPC_ID];
 
 /**
  * 功能：获取当前激活 NPC 的ID

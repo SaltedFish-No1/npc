@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/routes/chat.ts
  * 功能描述：聊天接口路由，支持一次性响应与 SSE 流式响应 | Description: Chat API routes supporting single response and SSE streaming
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 Fastify、Zod、会话与聊天服务；被服务器注册
  */

@@ -51,7 +51,8 @@ const resources = {
         title: 'Backend Connection',
         backendEndpoint: 'Endpoint',
         authKey: 'Auth Token',
-        backendDescription: 'The frontend now calls the Fastify backend. Update your .env to change the endpoint or rotate the x-api-key.',
+        backendDescription:
+          'The frontend now calls the Fastify backend. Update your .env to change the endpoint or rotate the x-api-key.',
         apiKeyUnset: 'Not configured'
       },
       toasts: {
@@ -112,7 +113,8 @@ const resources = {
         title: '后端连接',
         backendEndpoint: '服务地址',
         authKey: '鉴权密钥',
-        backendDescription: '前端现已通过 Fastify 后端统一代理请求。可在 .env 中修改地址或替换 x-api-key。',
+        backendDescription:
+          '前端现已通过 Fastify 后端统一代理请求。可在 .env 中修改地址或替换 x-api-key。',
         apiKeyUnset: '尚未配置'
       },
       toasts: {
@@ -142,6 +144,9 @@ i18n
       order: ['querystring', 'localStorage', 'navigator'],
       caches: ['localStorage']
     }
+  })
+  .catch((error) => {
+    console.error('Failed to initialize i18n:', error);
   });
 
 export default i18n;

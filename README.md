@@ -55,6 +55,38 @@ A React + Vite playground for building richly-configured NPC chat experiences on
 
    The root-level script proxies to `pnpm --filter @npc/web dev`, so you can stay in the repo root (or `cd web` and run the same command manually). The SPA mounts at http://localhost:5173 and forwards API calls to whichever backend you configured above.
 
+## Backend integration (Postgres + pgvector required)
+
+- Prerequisites:
+  - A running Postgres instance
+  - pgvector extension enabled: `CREATE EXTENSION IF NOT EXISTS vector;`
+  - Optional Redis for session cache: `REDIS_URL=redis://localhost:6379`
+
+- Backend env overview (see `backend/.env.example`):
+  - `DB_TYPE=postgres` and `DB_URL=postgres://user:pass@host:5432/dbname`
+  - `SESSION_STORAGE_STRATEGY=database`
+  - Embeddings & RAG: `EMBEDDING_MODEL_NAME`, `EMBEDDING_DIM`, `RAG_TOP_K`, `RAG_SCORE_THRESHOLD`
+  - LLM: `LLM_API_BASE`, `LLM_API_KEY`, `TEXT_MODEL_NAME`, `IMG_MODEL_NAME`
+  - Gateway key: `NPC_GATEWAY_KEY` (header `x-api-key` must match)
+
+- Run backend:
+  - `cd backend && pnpm install && pnpm dev`
+  - Health probe: `GET /health` → `{ status: 'ok'|'degraded', db: boolean }`
+
+- Read-only APIs:
+  - `GET /api/npc/sessions/:id` → session metadata + recent messages
+  - `GET /api/npc/sessions/:id/messages?limit=50&offset=0` → paginated message history
+  - `GET /api/npc/memory-stream?characterId=&sessionId=&limit=&offset=` → long‑term memories
+
+- Persistence & RAG (overview):
+  - Sessions/messages stored in Postgres tables (`sessions`, `session_messages`)
+  - Long‑term memory entries in `character_memory_stream`; embeddings in `character_memory_embeddings`
+  - Retrieval: user input → embedding → Top‑K similarity search → injected into the system prompt
+
+- Caching & failover:
+  - Optional Redis cache for session snapshots (`session:{id}`), default TTL 2h
+  - Failover: set `SESSION_STORAGE_STRATEGY=memory` to keep chat online (no persistence)
+
 ## Scripts
 
 | Command | Description |
@@ -80,3 +112,7 @@ NPC definitions live in `web/src/config/characterProfile.ts`:
 - `docs/unified-character-model.md` – Full breakdown of the V3 persona schema plus switching notes.
 
 Have fun experimenting with different personas and prompts! 🎮
+
+## License
+
+This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. See the [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) for more details.

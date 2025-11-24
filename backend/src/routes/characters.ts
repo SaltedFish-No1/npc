@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/routes/characters.ts
  * 功能描述：角色列表与激活接口路由 | Description: Character listing and activation API routes
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 Fastify、Zod、角色与会话服务；被服务器注册
  */

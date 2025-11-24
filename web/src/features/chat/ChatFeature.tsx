@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/features/chat/ChatFeature.tsx
  * 功能描述：聊天页面骨架与组合，连接核心交互控制器与UI组件 | Description: Chat page scaffold composing UI and hooking into controller
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 Zustand stores、i18n、控制器与各子组件
  */
@@ -11,10 +11,7 @@ import styles from './styles/ChatPage.module.css';
 import { useUIStore } from '@/stores/uiStore';
 import { useChatStore } from '@/stores/chatStore';
 import { ChatMessage } from '@/schemas/chat';
-import {
-  FALLBACK_AVATAR_BROKEN,
-  FALLBACK_AVATAR_NORMAL
-} from '@/config/constants';
+import { FALLBACK_AVATAR_BROKEN, FALLBACK_AVATAR_NORMAL } from '@/config/constants';
 import { useTranslation } from 'react-i18next';
 import { normalizeLanguageCode } from '@/config/i18nConfig';
 import { getActiveNpcLocalization } from '@/config/characterProfile';
@@ -67,7 +64,7 @@ export default function ChatFeature() {
   const isThinking = isSending || Boolean(liveContent);
 
   const isBooting = authLoading || sessionPending || !session;
-  const currentLanguage = normalizeLanguageCode(i18n.resolvedLanguage || i18n.language);
+  const currentLanguage = normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language);
   const npcLocalization = useMemo(
     () => getActiveNpcLocalization(currentLanguage),
     [currentLanguage]
@@ -83,7 +80,7 @@ export default function ChatFeature() {
     return (
       <div style={{ padding: 24 }}>
         <h3>{t('chat.errors.startupTitle')}</h3>
-        <p>{authError?.message || sessionError?.message || t('chat.errors.startupBody')}</p>
+        <p>{authError?.message ?? sessionError?.message ?? t('chat.errors.startupBody')}</p>
       </div>
     );
   }
@@ -93,9 +90,9 @@ export default function ChatFeature() {
    * 中文：当选择与当前语言相同则忽略，否则触发 i18n 切换
    * English: Ignore if selecting current language; otherwise change via i18n
    */
-  const handleLanguageChange = (code: string) => {
+  const handleLanguageChange = async (code: string) => {
     if (code === currentLanguage) return;
-    i18n.changeLanguage(code);
+    await i18n.changeLanguage(code);
   };
 
   return (

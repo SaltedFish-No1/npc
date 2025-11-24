@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/config/env.ts
  * 功能描述：加载并校验环境变量，提供应用配置（含鉴权KEY合并规则） | Description: Load and validate environment variables, providing app config with auth key resolution
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 dotenv 与 zod；被启动流程与服务使用
  */
@@ -20,6 +20,16 @@ const envSchema = z.object({
   TEXT_MODEL_NAME: z.string().min(1),
   IMG_MODEL_NAME: z.string().min(1),
   SESSION_STORE: z.enum(['memory', 'redis']).default('memory'),
+  DB_TYPE: z.enum(['postgres']).default('postgres'),
+  DB_URL: z.string(),
+  DB_POOL_SIZE: z.coerce.number().int().positive().default(10),
+  DB_SCHEMA: z.string().optional(),
+  SESSION_STORAGE_STRATEGY: z.enum(['database', 'memory']).default('database'),
+  REDIS_URL: z.string().optional(),
+  EMBEDDING_MODEL_NAME: z.string().optional(),
+  EMBEDDING_DIM: z.coerce.number().int().positive().default(1536),
+  RAG_TOP_K: z.coerce.number().int().positive().default(8),
+  RAG_SCORE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.25),
   MOCK_LLM_RESPONSES: z
     .union([z.string(), z.boolean()])
     .optional()
@@ -55,6 +65,16 @@ export const getConfig = (): AppConfig => {
     TEXT_MODEL_NAME: process.env.TEXT_MODEL_NAME,
     IMG_MODEL_NAME: process.env.IMG_MODEL_NAME,
     SESSION_STORE: process.env.SESSION_STORE,
+    DB_TYPE: process.env.DB_TYPE,
+    DB_URL: process.env.DB_URL,
+    DB_POOL_SIZE: process.env.DB_POOL_SIZE,
+    DB_SCHEMA: process.env.DB_SCHEMA,
+    SESSION_STORAGE_STRATEGY: process.env.SESSION_STORAGE_STRATEGY,
+    REDIS_URL: process.env.REDIS_URL,
+    EMBEDDING_MODEL_NAME: process.env.EMBEDDING_MODEL_NAME,
+    EMBEDDING_DIM: process.env.EMBEDDING_DIM,
+    RAG_TOP_K: process.env.RAG_TOP_K,
+    RAG_SCORE_THRESHOLD: process.env.RAG_SCORE_THRESHOLD,
     MOCK_LLM_RESPONSES: process.env.MOCK_LLM_RESPONSES
   });
 

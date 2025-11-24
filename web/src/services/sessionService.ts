@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/services/sessionService.ts
  * 功能描述：前端会话读写/订阅服务（内存+localStorage 双层缓存） | Description: Frontend session service with memory + localStorage cache and subscriptions
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 env 配置与后端接口封装
  */
@@ -43,7 +43,12 @@ const readSession = (
   }
 };
 
-const emitSession = (userId: string, characterId: string, languageCode: string, session: SessionData) => {
+const emitSession = (
+  userId: string,
+  characterId: string,
+  languageCode: string,
+  session: SessionData
+) => {
   const key = cacheKey(userId, characterId, languageCode);
   const listeners = subscribers.get(key);
   if (!listeners) return;
@@ -149,7 +154,7 @@ export const subscribeSession = (
  * 功能：重置本地会话缓存并清理订阅者
  * Description: Reset local session cache and clean subscribers
  */
-export const resetSession = async (userId: string, characterId: string, languageCode: string) => {
+export const resetSession = (userId: string, characterId: string, languageCode: string) => {
   const key = cacheKey(userId, characterId, languageCode);
   memoryStore.delete(key);
   if (isBrowser) {

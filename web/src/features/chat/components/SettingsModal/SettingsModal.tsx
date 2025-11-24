@@ -4,10 +4,10 @@ import { Link2, Shield } from 'lucide-react';
 import styles from './SettingsModal.module.css';
 import { IS_BACKEND_CONFIGURED, NPC_API_BASE_URL, NPC_API_KEY } from '@/config/constants';
 
-interface SettingsModalProps {
+type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-}
+};
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { t } = useTranslation();

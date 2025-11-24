@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/services/image/imageService.ts
  * 功能描述：图片生成服务，支持使用最新 image_prompt 并可更新头像 | Description: Image generation service that can use latest image_prompt and update avatar
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 LLMClient 与 SessionService
  */

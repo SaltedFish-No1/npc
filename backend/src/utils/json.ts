@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/utils/json.ts
  * 功能描述：JSON 文本清洗工具（去除代码块、规范化正号数字） | Description: JSON text sanitizers for code fences and plus-sign numbers
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：纯函数，无外部依赖
  */

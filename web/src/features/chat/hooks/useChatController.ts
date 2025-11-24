@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/features/chat/hooks/useChatController.ts
  * 功能描述：聊天核心交互控制器 Hook（鉴权、会话加载、消息发送、流式与图片生成） | Description: Chat controller hook handling auth, session, messaging, streaming and image generation
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 React Query、i18n、stores 与服务模块
  */
@@ -29,12 +29,16 @@ export function useChatController() {
   const { user, loading: authLoading, error: authError } = useAuth();
   const activeCharacterId = getActiveNpcId();
   const { t, i18n } = useTranslation();
-  const targetLanguage = normalizeLanguageCode(i18n.resolvedLanguage || i18n.language);
+  const targetLanguage = normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language);
   const sessionQueryKey = useMemo(
     () => ['session', user?.uid, activeCharacterId, targetLanguage] as const,
     [user?.uid, activeCharacterId, targetLanguage]
   );
-  const { data: session, isPending: sessionPending, error: sessionError } = useChatSession({
+  const {
+    data: session,
+    isPending: sessionPending,
+    error: sessionError
+  } = useChatSession({
     userId: user?.uid,
     characterId: activeCharacterId,
     languageCode: targetLanguage
@@ -70,8 +74,7 @@ export function useChatController() {
         ratio: '1:1',
         updateAvatar: true
       });
-      const currentSession =
-        (queryClient.getQueryData(sessionQueryKey) as SessionData | undefined) ?? session;
+      const currentSession = queryClient.getQueryData<SessionData>(sessionQueryKey) ?? session;
       if (currentSession) {
         const updatedSession: SessionData = {
           ...currentSession,
@@ -98,9 +101,9 @@ export function useChatController() {
    * 业务规则：重置会话并清理查询缓存
    * Description: Reset session and clear query cache
    */
-  const handleResetSession = async () => {
+  const handleResetSession = () => {
     if (!user?.uid) return;
-    await resetSession(user.uid, activeCharacterId, targetLanguage);
+    resetSession(user.uid, activeCharacterId, targetLanguage);
     queryClient.removeQueries({ queryKey: sessionQueryKey });
   };
 
@@ -118,7 +121,7 @@ export function useChatController() {
 
     const messageContent = input.trim();
     const userMessage: ChatMessage = { role: 'user', content: messageContent };
-    const baseSession = (queryClient.getQueryData(sessionQueryKey) as SessionData | undefined) ?? session;
+    const baseSession = queryClient.getQueryData<SessionData>(sessionQueryKey) ?? session;
 
     const optimisticSession: SessionData = {
       ...baseSession,

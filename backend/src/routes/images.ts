@@ -1,7 +1,7 @@
 /**
  * 文件：backend/src/routes/images.ts
  * 功能描述：图片生成接口路由，支持使用提示词或会话中的 image_prompt | Description: Image generation API route using prompt or session image_prompt
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 Fastify、Zod、图片与会话服务；被服务器注册
  */

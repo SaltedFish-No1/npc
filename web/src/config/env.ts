@@ -1,8 +1,10 @@
 import { DEFAULT_APP_ID } from './constants';
 
 export const getAppId = (): string => {
-  if (typeof window !== 'undefined' && (window as Record<string, any>).__app_id) {
-    return (window as Record<string, any>).__app_id as string;
+  if (typeof window !== 'undefined') {
+    const appId = (window as unknown as { __app_id?: string }).__app_id;
+    if (appId) return appId;
   }
-  return import.meta.env.VITE_APP_ID || DEFAULT_APP_ID;
+  const envAppId = import.meta.env.VITE_APP_ID as string | undefined;
+  return envAppId ?? DEFAULT_APP_ID;
 };

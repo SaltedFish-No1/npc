@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/config/i18nConfig.ts
  * 功能描述：国际化配置与语言码归一化 | Description: i18n config and language code normalization
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：纯配置与函数
  */

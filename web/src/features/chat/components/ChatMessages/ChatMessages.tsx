@@ -7,13 +7,13 @@ import { ChatMessage, CharacterState } from '@/schemas/chat';
 import { FALLBACK_USER_AVATAR } from '@/config/constants';
 import { CHARACTER_PROFILE, USER_PROFILE } from '@/config/characterProfile';
 
-interface ChatMessagesProps {
+type ChatMessagesProps = {
   messages: ChatMessage[];
   isBooting: boolean;
   avatar: string;
   state: CharacterState;
   isThinking?: boolean;
-}
+};
 
 export function ChatMessages({
   messages,

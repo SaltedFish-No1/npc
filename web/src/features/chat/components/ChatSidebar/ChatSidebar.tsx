@@ -1,24 +1,19 @@
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
-import {
-  Brain,
-  Loader2,
-  RefreshCw,
-  Settings
-} from 'lucide-react';
+import { Brain, Loader2, RefreshCw, Settings } from 'lucide-react';
 import styles from './ChatSidebar.module.css';
 import { CharacterState } from '@/schemas/chat';
 import { IS_BACKEND_CONFIGURED, NPC_API_BASE_URL } from '@/config/constants';
 import { CHARACTER_PROFILE } from '@/config/characterProfile';
 
-interface ChatSidebarProps {
+type ChatSidebarProps = {
   isBroken: boolean;
   avatar: string;
   state: CharacterState;
   isGenerating: boolean;
   onToggleSettings: () => void;
   onGenerateAvatar: () => void;
-}
+};
 
 export function ChatSidebar({
   isBroken,
@@ -60,7 +55,7 @@ export function ChatSidebar({
       </div>
 
       <div className={styles.avatarCard}>
-  <img src={avatar} alt={CHARACTER_PROFILE.codename} className={styles.avatarImage} />
+        <img src={avatar} alt={CHARACTER_PROFILE.codename} className={styles.avatarImage} />
         <div className={styles.avatarOverlay}>
           <button className={styles.ghostButton} onClick={onGenerateAvatar}>
             {isGenerating ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
@@ -68,7 +63,9 @@ export function ChatSidebar({
           </button>
         </div>
         <div className={styles.badge}>
-          {isBroken ? CHARACTER_PROFILE.statuses.badgeBroken : CHARACTER_PROFILE.statuses.badgeNormal}
+          {isBroken
+            ? CHARACTER_PROFILE.statuses.badgeBroken
+            : CHARACTER_PROFILE.statuses.badgeNormal}
         </div>
       </div>
 
@@ -90,7 +87,10 @@ export function ChatSidebar({
           <div className={styles.statBar}>
             <div
               className={styles.statFill}
-              style={{ width: `${state.trust}%`, background: 'linear-gradient(90deg,#0ea5e9,#22d3ee)' }}
+              style={{
+                width: `${state.trust}%`,
+                background: 'linear-gradient(90deg,#0ea5e9,#22d3ee)'
+              }}
             />
           </div>
         </div>
@@ -108,7 +108,8 @@ export function ChatSidebar({
 
       <div className={styles.panelFooter}>
         <span>
-          {t('chat.sidebar.engineLabel')}: {IS_BACKEND_CONFIGURED ? 'NPC API' : t('chat.sidebar.pendingLabel')}
+          {t('chat.sidebar.engineLabel')}:{' '}
+          {IS_BACKEND_CONFIGURED ? 'NPC API' : t('chat.sidebar.pendingLabel')}
         </span>
         <span className={styles.backendMeta}>{backendDisplay}</span>
       </div>

@@ -1,7 +1,7 @@
 /**
  * 文件：web/src/services/chatService.ts
  * 功能描述：前端 NPC 后端接口封装，含角色、聊天SSE与图片生成 | Description: Frontend service wrapping NPC backend APIs for characters, chat SSE and image generation
- * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖常量与 Zod 模型
  */
@@ -12,7 +12,6 @@ import {
   ChatTurnResponse,
   chatTurnResponseSchema,
   imageGenerationResponseSchema,
-  ImageGenerationResponse,
   sessionSchema,
   SessionData,
   characterStateSchema,
@@ -79,7 +78,7 @@ const performJsonRequest = async <T>(
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as unknown;
   return schema.parse(data);
 };
 
@@ -91,7 +90,9 @@ export const fetchCharacters = async (params?: {
   languageCode?: string;
   signal?: AbortSignal;
 }): Promise<CharacterSummary[]> => {
-  const query = params?.languageCode ? `?languageCode=${encodeURIComponent(params.languageCode)}` : '';
+  const query = params?.languageCode
+    ? `?languageCode=${encodeURIComponent(params.languageCode)}`
+    : '';
   return performJsonRequest(`/api/characters${query}`, z.array(characterSummarySchema), {
     method: 'GET',
     signal: params?.signal
@@ -148,9 +149,7 @@ type StreamChatParams = {
  * 功能：以 SSE 流式发送聊天请求并处理事件
  * Description: Send chat via SSE and handle events
  */
-export const streamChatCompletion = async (
-  params: StreamChatParams
-): Promise<ChatTurnResponse> => {
+export const streamChatCompletion = async (params: StreamChatParams): Promise<ChatTurnResponse> => {
   assertBackendConfigured();
 
   const response = await fetch(buildApiUrl('/api/npc/chat/stream'), {
@@ -233,7 +232,7 @@ export const streamChatCompletion = async (
 
     buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
     const events = buffer.split('\n\n');
-    buffer = events.pop() || '';
+    buffer = events.pop() ?? '';
     for (const evt of events) {
       handleEventBlock(evt);
       if (streamClosed) break;

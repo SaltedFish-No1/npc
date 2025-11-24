@@ -1,0 +1,244 @@
+# NPC 后端服务架构开发说明
+
+本文详细介绍 NPC 项目后端服务的技术栈、目录结构、核心组件、数据流以及业务逻辑。阅读完后，你将能够深入理解后端的工作原理，并按现有约定扩展功能。
+
+## 技术栈与基础设施
+
+- **构建/开发工具**：使用 TypeScript + tsx 作为开发环境，pnpm 作为包管理器，提供 `dev`、`start`、`build`、`typecheck`、`test` 等脚本。详见 `backend/package.json`。
+- **Web 框架**：Fastify 作为核心 Web 框架，提供高性能的 HTTP 服务、路由管理和插件系统。
+- **数据库**：PostgreSQL 作为主要持久化存储，支持 pgvector 扩展用于向量检索；提供 Memory 存储作为降级方案。
+- **缓存**：Redis 作为可选会话缓存，提供读写穿透和 TTL 机制。
+- **AI 客户端**：封装的 LLMClient 用于与上游模型服务交互，支持流式响应。
+- **验证**：Zod 用于请求参数和响应数据的 schema 验证。
+- **日志**：Pino 用于结构化日志记录，开发环境下使用 pino-pretty 美化输出。
+
+## 目录总览
+
+```
+backend/
+├── config/characters/     # YAML 角色定义文件
+├── templates/prompts/     # Prompt 模板文件
+├── src/
+│   ├── cache/            # 会话缓存（Redis 可选）
+│   ├── clients/          # 外部服务客户端（LLM）
+│   ├── config/           # 环境配置与验证
+│   ├── container.ts      # 依赖注入与上下文构建
+│   ├── db/               # 数据库连接与初始化
+│   ├── routes/           # 路由定义
+│   ├── schemas/          # Zod 验证 schema
+│   ├── server.ts         # Fastify 服务器构建
+│   ├── services/         # 核心业务服务
+│   ├── utils/            # 工具函数
+│   └── index.ts          # 服务启动入口
+└── tests/                # 单元与集成测试
+```
+
+## 服务启动流程
+
+```mermaid
+sequenceDiagram
+    participant Main as index.ts
+    participant Config as config/env.ts
+    participant Server as server.ts
+    participant Container as container.ts
+    participant Fastify as Fastify Instance
+    participant Routes as Routes
+
+    Main->>Config: getConfig()
+    Config->>Main: 返回配置
+    Main->>Container: buildAppContext(config)
+    Container->>Container: 实例化所有服务
+    Container->>Main: 返回应用上下文
+    Main->>Server: createServer(config, context)
+    Server->>Fastify: 创建 Fastify 实例
+    Server->>Fastify: 注册 CORS、SSE、速率限制插件
+    Server->>Fastify: 注册健康检查路由
+    Server->>Fastify: 安装全局鉴权钩子
+    Server->>Routes: 注册业务路由
+    Server->>Main: 返回已配置的服务器
+    Main->>Fastify: listen()
+    Fastify->>Main: 服务器启动完成
+```
+
+## 应用上下文与依赖注入
+
+应用上下文通过 `container.ts` 构建，实现了服务的集中管理和依赖注入：
+
+```typescript
+export type AppContext = {
+  config: AppConfig;
+  services: {
+    characters: CharacterService;
+    sessions: SessionService;
+    prompt: PromptEngine;
+    chat: ChatService;
+    image: ImageService;
+    llm: LLMClient;
+  };
+};
+```
+
+### 服务装配流程
+
+1. CharacterService：加载角色配置文件
+2. SessionStore：根据配置选择 database 或 memory 存储
+3. SessionService：包裹 SessionStore 并添加缓存层
+4. PromptEngine：加载 Prompt 模板文件
+5. LLMClient：创建 LLM 服务客户端
+6. MemoryService：初始化向量检索服务
+7. ChatService：集成 PromptEngine、SessionService、CharacterService、LLMClient 和 MemoryService
+8. ImageService：集成 LLMClient 和 SessionService
+
+## 路由系统与鉴权
+
+### 全局鉴权
+
+所有请求（除健康检查 `/health` 外）都需要携带 `x-api-key` 并匹配配置中的 `NPC_GATEWAY_KEY`：
+
+```typescript
+app.addHook('onRequest', async (request, reply) => {
+  const path = request.routeOptions?.url ?? request.raw.url ?? '';
+  if (path.startsWith('/health')) return;
+  const token = request.headers['x-api-key'];
+  if (token !== ctx.config.NPC_GATEWAY_KEY) {
+    reply.code(401).send({ error: 'UNAUTHORIZED' });
+  }
+});
+```
+
+### 路由列表
+
+- `GET /health`：健康检查
+- `GET /api/characters`：角色列表
+- `POST /api/characters/:id/activate`：激活角色会话
+- `POST /api/npc/chat`：非流式聊天
+- `POST /api/npc/chat/stream`：SSE 流式聊天
+- `POST /api/npc/images`：图片生成
+- `GET /api/npc/sessions/:id`：会话详情
+- `GET /api/npc/sessions/:id/messages`：会话消息
+- `GET /api/npc/memory-stream`：记忆流
+
+## 核心服务与组件
+
+### 1. ChatService
+
+聊天业务的核心服务，处理：
+- 消息上下文构建
+- Prompt 生成
+- LLM 交互
+- 会话更新
+- 记忆流处理
+
+### 2. SessionService
+
+会话管理服务，提供：
+- 会话的创建/读取/更新/删除
+- 缓存读写穿透
+- 存储策略降级（database -> memory）
+
+### 3. MemoryService
+
+记忆管理服务，实现：
+- 记忆的持久化
+- 向量生成与检索
+- Top-K 相似度匹配
+
+### 4. PromptEngine
+
+Prompt 生成引擎，支持：
+- 模板加载与渲染
+- 角色属性注入
+- 上下文动态组装
+
+### 5. LLMClient
+
+LLM 服务客户端，支持：
+- 非流式请求
+- SSE 流式响应
+- 错误处理与重试
+
+## 数据持久化与缓存
+
+### 存储策略
+
+```mermaid
+flowchart LR
+    A[请求] --> B{存储策略}
+    B -->|database| C[PostgreSQL]
+    B -->|memory| D[InMemoryStore]
+    C --> E[SessionTable]
+    C --> F[MessagesTable]
+    C --> G[MemoryStreamTable]
+    C --> H[MemoryEmbeddingsTable]
+    D --> I[内存中的会话Map]
+```
+
+### 缓存机制
+
+```mermaid
+flowchart LR
+    A[请求获取会话] --> B{缓存存在?}
+    B -->|是| C[返回缓存会话]
+    B -->|否| D[从存储读取]
+    D --> E[存入缓存]
+    E --> C
+```
+
+## 核心业务流程
+
+### 流式聊天流程
+
+```mermaid
+sequenceDiagram
+    participant Client as 前端
+    participant Server as 后端
+    participant Chat as ChatService
+    participant Prompt as PromptEngine
+    participant LLM as LLMClient
+    participant Memory as MemoryService
+    participant Session as SessionService
+
+    Client->>Server: POST /api/npc/chat/stream
+    Server->>Chat: handleChatStream()
+    Chat->>Session: getSession()
+    Chat->>Memory: getRelevantMemories()
+    Memory->>Memory: 向量检索 Top-K 记忆
+    Chat->>Prompt: generatePrompt()
+    Prompt->>Chat: 返回生成的 Prompt
+    Chat->>LLM: streamCompletion()
+    loop 流式返回
+        LLM->>Chat: 返回 chunk
+        Chat->>Server: SSE 发送 chunk
+        Server->>Client: SSE 接收 chunk
+    end
+    LLM->>Chat: 返回最终结果
+    Chat->>Session: 保存会话
+    Chat->>Memory: 保存新记忆
+    Server->>Client: 结束 SSE
+```
+
+## 开发者工作流建议
+
+1. **启动/调试**：运行 `pnpm dev` 启动开发服务器，默认监听 4000 端口
+2. **添加新服务**：在 `services/` 目录下创建新服务类，并在 `container.ts` 中注册
+3. **添加新路由**：在 `routes/` 目录下创建新路由文件，并在 `server.ts` 中注册
+4. **编码规范**：
+   - 使用 TypeScript 严格模式
+   - 为所有请求和响应定义 Zod schema
+   - 使用 Pino 记录结构化日志
+   - 函数和类使用 JSDoc 注释
+
+## 常见扩展场景参考
+
+- **接入新的 LLM 服务**：修改 `clients/llmClient.ts` 或实现新的客户端
+- **添加新的记忆类型**：扩展 `MemoryService` 和相关数据库表
+- **修改存储策略**：在 `container.ts` 中添加新的 SessionStore 实现
+- **添加新的路由**：在 `routes/` 目录下创建新的路由文件
+
+## 架构设计原则
+
+1. **松耦合**：通过依赖注入和接口抽象降低模块间耦合
+2. **可扩展**：支持多种存储策略、缓存机制和客户端
+3. **高性能**：使用 Fastify、Redis 缓存和流式响应
+4. **容错**：提供存储策略降级和错误处理机制
+5. **可观测**：全面的结构化日志和健康检查
