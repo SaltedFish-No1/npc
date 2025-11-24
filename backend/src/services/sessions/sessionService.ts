@@ -12,6 +12,7 @@ import { CharacterState, ChatMessage, SessionData } from '../../schemas/chat.js'
 import { SessionStore } from './sessionStore.js';
 import type { SessionCache } from '../../cache/sessionCache.js';
 import { AvatarService } from '../avatars/avatarService.js';
+import type { DB } from '../../db/dbClient.js';
 
 const DEFAULT_LANGUAGE = 'en';
 
@@ -24,7 +25,8 @@ export class SessionService {
     private readonly store: SessionStore,
     private readonly characterService: CharacterService,
     private readonly cache?: SessionCache | null,
-    private readonly avatarService?: AvatarService
+    private readonly avatarService?: AvatarService,
+    private readonly dbPromise?: Promise<DB> | null
   ) {}
 
   /**
@@ -113,12 +115,24 @@ export class SessionService {
       throw new Error('Session not found');
     }
 
+    const timestamp = Date.now();
+    const userMessage: ChatMessage = {
+      ...payload.userMessage,
+      messageId: payload.userMessage.messageId ?? nanoid(),
+      createdAt: payload.userMessage.createdAt ?? timestamp - 1
+    };
+    const assistantMessage: ChatMessage = {
+      ...payload.assistantMessage,
+      messageId: payload.assistantMessage.messageId ?? nanoid(),
+      createdAt: payload.assistantMessage.createdAt ?? timestamp
+    };
+
     const updated: SessionData = {
       ...existing,
       updatedAt: Date.now(),
       version: existing.version + 1,
       characterState: payload.characterState,
-      messages: [...existing.messages, payload.userMessage, payload.assistantMessage]
+      messages: [...existing.messages, userMessage, assistantMessage]
     };
 
     // Resolve cache promise if it exists for update operations
@@ -162,6 +176,106 @@ export class SessionService {
     return updated;
   }
 
+  async attachImageToLastAssistantMessage(
+    sessionId: string,
+    payload: { imageUrl: string; imagePrompt?: string }
+  ): Promise<SessionData> {
+    const existing = await this.store.get(sessionId);
+    if (!existing) {
+      throw new Error('Session not found');
+    }
+
+    const messages = [...existing.messages];
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role !== 'assistant') continue;
+      messages[i] = {
+        ...messages[i],
+        imageUrl: payload.imageUrl,
+        imagePrompt: payload.imagePrompt ?? messages[i].imagePrompt
+      };
+      const updated: SessionData = {
+        ...existing,
+        messages,
+        updatedAt: Date.now()
+      };
+      const cacheInstance = await this.cache;
+      await this.store.set(updated);
+      await cacheInstance?.set(updated);
+      return updated;
+    }
+    return existing;
+  }
+
+  async listMessages(params: {
+    sessionId: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<{ items: ChatMessage[]; nextCursor: string | null }> {
+    const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
+    const db = await this.getDb();
+    if (!db) {
+      const session = await this.store.get(params.sessionId);
+      if (!session) return { items: [], nextCursor: null };
+      const ordered = [...session.messages].sort(
+        (a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)
+      );
+      const filtered = params.cursor
+        ? ordered.filter((msg) => isMessageOlderThan(msg, params.cursor ?? '0:'))
+        : ordered;
+      const slice = filtered.slice(-limit);
+      const nextCursor = filtered.length > slice.length && slice.length
+        ? buildCursor(slice[0])
+        : null;
+      return { items: slice, nextCursor };
+    }
+
+    const cursor = params.cursor ? parseCursor(params.cursor) : null;
+    const values: unknown[] = [params.sessionId];
+    let where = 'WHERE sessionId=$1';
+    if (cursor) {
+      values.push(cursor.createdAt, cursor.messageId);
+      where += ` AND (createdAt < $2 OR (createdAt = $2 AND messageId < $3))`;
+    }
+    values.push(limit + 1);
+    const res = await db.query<{
+      messageid: string;
+      role: string;
+      content: string;
+      thought: string | null;
+      attributes: string | null;
+      createdat: number;
+    }>(
+      `SELECT messageId, role, content, thought, attributes, createdAt
+       FROM session_messages
+       ${where}
+       ORDER BY createdAt DESC, messageId DESC
+       LIMIT $${values.length}`,
+      values
+    );
+
+    const rows = res.rows.slice();
+    let nextCursor: string | null = null;
+    if (rows.length > limit) {
+      const extra = rows.pop()!;
+      nextCursor = buildCursor({
+        messageId: (extra as any).messageid ?? (extra as any).messageId,
+        createdAt: (extra as any).createdat ?? (extra as any).createdAt
+      });
+    }
+
+    const items = rows.map((row) => adaptMessageRow(row)).reverse();
+
+    return { items, nextCursor };
+  }
+
+  private async getDb(): Promise<DB | null> {
+    if (!this.dbPromise) return null;
+    try {
+      return await this.dbPromise;
+    } catch {
+      return null;
+    }
+  }
   /**
    * 功能：构建初始会话，包括默认问候与角色状态
    * Description: Build initial session with default greeting and state
@@ -178,7 +292,9 @@ export class SessionService {
       thought: 'Opening line',
       stressChange: 0,
       trustChange: 0,
-      currentStress: profile.defaultState.stress
+      currentStress: profile.defaultState.stress,
+      messageId: nanoid(),
+      createdAt: Date.now()
     };
 
     const baseState = { ...profile.defaultState, name: profile.name };
@@ -189,8 +305,8 @@ export class SessionService {
       sessionId,
       characterId: profile.id,
       languageCode: normalizedLang,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: initialAssistant.createdAt ?? Date.now(),
+      updatedAt: initialAssistant.createdAt ?? Date.now(),
       version: 1,
       characterState: {
         ...baseState,
@@ -242,3 +358,62 @@ export class SessionService {
     return updated;
   }
 }
+
+const parseCursor = (cursor: string): { createdAt: number; messageId: string } => {
+  const [ts, ...rest] = cursor.split(':');
+  return {
+    createdAt: Number(ts) || 0,
+    messageId: rest.join(':') ?? ''
+  };
+};
+
+const buildCursor = (input?: { createdAt?: number; messageId?: string } | null): string => {
+  if (!input) return '0:';
+  return `${input.createdAt ?? 0}:${input.messageId ?? ''}`;
+};
+
+const isMessageOlderThan = (msg: ChatMessage, cursor: string): boolean => {
+  const target = parseCursor(cursor);
+  const createdAt = msg.createdAt ?? 0;
+  if (createdAt < target.createdAt) return true;
+  if (createdAt > target.createdAt) return false;
+  const messageId = msg.messageId ?? '';
+  return messageId < target.messageId;
+};
+
+type StoredAttributes = Partial<Pick<ChatMessage, 'imageUrl'>>;
+
+const adaptMessageRow = (row: {
+  messageid?: string;
+  messageId?: string;
+  role: string;
+  content: string;
+  thought: string | null;
+  attributes: string | null;
+  createdat?: number;
+  createdAt?: number;
+}): ChatMessage => {
+  const attrs = parseAttributesPayload(row.attributes);
+  return {
+    role: row.role as 'system' | 'user' | 'assistant',
+    content: row.content,
+    thought: row.thought ?? undefined,
+    ...attrs,
+    messageId: row.messageid ?? row.messageId,
+    createdAt: row.createdat ?? row.createdAt
+  };
+};
+
+const parseAttributesPayload = (val: string | null): StoredAttributes => {
+  if (!val) return {};
+  try {
+    const parsed = JSON.parse(val);
+    const output: StoredAttributes = {};
+    if (typeof parsed.imageUrl === 'string') {
+      output.imageUrl = parsed.imageUrl;
+    }
+    return output;
+  } catch {
+    return {};
+  }
+};

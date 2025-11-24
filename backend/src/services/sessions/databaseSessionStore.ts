@@ -3,6 +3,7 @@
  * 功能描述：基于数据库的会话存储（替代内存），完整持久化会话元数据与消息历史 | Description: Database-backed session store persisting session metadata and message history
  */
 import { SessionData, ChatMessage } from '../../schemas/chat.js';
+import { nanoid } from 'nanoid';
 import type { SessionStore } from './sessionStore.js';
 import type { DB } from '../../db/dbClient.js';
 
@@ -39,7 +40,9 @@ export class DatabaseSessionStore implements SessionStore {
       role: m.role as 'system' | 'user' | 'assistant',
       content: m.content,
       thought: m.thought ?? undefined,
-      ...(parseAttributes(m.attributes))
+      ...(parseAttributes(m.attributes)),
+      messageId: (m as any).messageid ?? m.messageId,
+      createdAt: (m as any).createdat ?? (m as any).createdAt
     }));
 
     return {
@@ -73,9 +76,9 @@ export class DatabaseSessionStore implements SessionStore {
 
     // 简化策略：替换该会话全部消息（避免复杂 diff）
     await this.db.query('DELETE FROM session_messages WHERE sessionId=$1', [session.sessionId]);
-    let idx = 0;
     for (const m of session.messages) {
-      const messageId = `${session.sessionId}:${session.version ?? 1}:${idx++}`;
+      const messageId = m.messageId ?? nanoid();
+      const createdAt = m.createdAt ?? now;
       await this.db.query(
         `INSERT INTO session_messages (messageId, sessionId, role, content, thought, attributes, createdAt)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -86,7 +89,7 @@ export class DatabaseSessionStore implements SessionStore {
           m.content,
           m.thought ?? null,
           JSON.stringify(serializeAttributes(m)),
-          now
+          createdAt
         ]
       );
     }
