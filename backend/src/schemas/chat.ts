@@ -1,5 +1,13 @@
+/**
+ * 文件：backend/src/schemas/chat.ts
+ * 功能描述：后端 Zod 模型定义（角色状态、聊天消息、AI 响应、会话数据） | Description: Backend Zod schemas for character state, chat message, AI response, session data
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖 zod；被服务与路由用于校验
+ */
 import { z } from 'zod';
 
+/** 角色状态 | Character state */
 export const characterStateSchema = z.object({
   stress: z.number().min(0).max(100),
   trust: z.number().min(0).max(100),
@@ -10,6 +18,7 @@ export const characterStateSchema = z.object({
 
 export type CharacterState = z.infer<typeof characterStateSchema>;
 
+/** 聊天消息 | Chat message */
 export const chatMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant']),
   content: z.string(),
@@ -22,6 +31,7 @@ export const chatMessageSchema = z.object({
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
+/** AI 响应 | AI response */
 export const aiResponseSchema = z.object({
   thought: z.string(),
   stress_change: z.number(),
@@ -32,6 +42,7 @@ export const aiResponseSchema = z.object({
 
 export type AIResponse = z.infer<typeof aiResponseSchema>;
 
+/** 会话数据 | Session data */
 export const sessionDataSchema = z.object({
   sessionId: z.string(),
   characterId: z.string(),

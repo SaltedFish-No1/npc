@@ -1,3 +1,10 @@
+/**
+ * 文件：backend/src/clients/llmClient.ts
+ * 功能描述：对接上游 LLM 文本/图片接口，含流式解析与健壮性处理 | Description: Upstream LLM client for text/image with streaming parsing and robustness
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖环境配置与 JSON 工具、Zod 模型
+ */
 import { TextDecoder } from 'node:util';
 
 import { AppConfig } from '../config/env.js';
@@ -22,9 +29,19 @@ const SIZE_MAP: Record<string, string> = {
   '4:3': '2304x1728'
 };
 
+/**
+ * LLM 客户端：封装聊天与图片生成 API
+ * LLMClient: Encapsulates chat and image generation APIs
+ */
 export class LLMClient {
   constructor(private readonly config: AppConfig) {}
 
+  /**
+   * 功能：创建非流式聊天补全
+   * Description: Create non-stream chat completion
+   * @param {ChatCompletionRequest} payload - 请求负载 | Request payload
+   * @returns {Promise<AIResponse>} 解析后的 AI 响应 | Parsed AI response
+   */
   async createChatCompletion(payload: ChatCompletionRequest): Promise<AIResponse> {
     if (this.config.MOCK_LLM_RESPONSES) {
       return this.mockChatResponse();
@@ -50,6 +67,13 @@ export class LLMClient {
     return this.parseAiResponse(data.choices?.[0]?.message?.content);
   }
 
+  /**
+   * 功能：创建流式聊天补全，逐块解析 SSE 并聚合内容
+   * Description: Create streaming chat completion, parse SSE blocks and aggregate content
+   * @param {ChatCompletionRequest} payload - 请求负载 | Request payload
+   * @param {(chunk:string)=>void} onChunk - 文本块回调 | Text chunk callback
+   * @returns {Promise<AIResponse>} 解析后的 AI 响应 | Parsed AI response
+   */
   async createChatCompletionStream(
     payload: ChatCompletionRequest,
     onChunk: (chunk: string) => void
@@ -87,6 +111,11 @@ export class LLMClient {
     let fallback: string | null = null;
     let doneStreaming = false;
 
+    /**
+     * 复杂算法：SSE 事件块解析
+     * 中文：解析 `data:` 行，分辨 `delta.content` 与 `reasoning_content`，聚合最终内容并保留回退
+     * English: Parse `data:` lines, distinguish `delta.content` vs `reasoning_content`, aggregate content with fallback
+     */
     const processEvent = (eventBlock: string) => {
       const lines = eventBlock.split('\n');
       for (const line of lines) {
@@ -150,6 +179,12 @@ export class LLMClient {
     return this.parseAiResponse(raw);
   }
 
+  /**
+   * 功能：生成图片并返回 URL
+   * Description: Generate image and return URL
+   * @param {ImageGenerationRequest} payload - 请求负载 | Request payload
+   * @returns {Promise<string>} 图片地址 | Image URL
+   */
   async generateImage(payload: ImageGenerationRequest): Promise<string> {
     if (this.config.MOCK_LLM_RESPONSES) {
       return 'https://images.example.com/mock-image.png';
@@ -176,6 +211,10 @@ export class LLMClient {
     return data.data?.[0]?.url ?? '';
   }
 
+  /**
+   * 功能：构建上游 API 请求头
+   * Description: Build upstream API headers
+   */
   private buildHeaders() {
     return {
       'Content-Type': 'application/json',
@@ -183,6 +222,11 @@ export class LLMClient {
     };
   }
 
+  /**
+   * 非常规处理：AI 响应解析与清洗
+   * 中文：去除三引号代码块、规范化正号数字，Zod 校验失败直接报错
+   * English: Trim code fences, normalize plus-sign numbers, validate with Zod or throw
+   */
   private parseAiResponse(rawContent?: string): AIResponse {
     const cleaned = trimCodeFence(rawContent ?? '');
     if (!cleaned) {
@@ -196,6 +240,10 @@ export class LLMClient {
     return parsed.data;
   }
 
+  /**
+   * 功能：返回模拟聊天响应（用于本地或测试）
+   * Description: Return a mock chat response for local/testing
+   */
   private mockChatResponse(): AIResponse {
     return {
       thought: 'Mocking thoughtful response',

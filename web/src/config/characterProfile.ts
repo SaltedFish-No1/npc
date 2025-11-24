@@ -1,3 +1,10 @@
+/**
+ * 文件：web/src/config/characterProfile.ts
+ * 功能描述：前端角色预设、头像与本地化配置 | Description: Frontend character presets, avatar fallbacks and localization config
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖角色模型与浏览器 localStorage
+ */
 import {
   cloneCharacterModel,
   MOB_CHARACTER_MODEL_TEMPLATE,
@@ -560,6 +567,10 @@ export type NpcOption = {
   tagline: string;
 };
 
+/**
+ * 功能：获取可选 NPC 列表（id、代号与标语）
+ * Description: Get available NPC options (id, codename, tagline)
+ */
 export const getNpcOptions = (): NpcOption[] =>
   AVAILABLE_NPC_IDS.map((npcId) => {
     const preset = NPC_PRESETS[npcId];
@@ -570,13 +581,29 @@ export const getNpcOptions = (): NpcOption[] =>
     };
   });
 
+/**
+ * 功能：按ID获取 NPC 预设（缺省回退）
+ * Description: Get NPC preset by ID with default fallback
+ */
 export const getNpcPreset = (id: string): NpcPreset => NPC_PRESETS[id] ?? NPC_PRESETS[DEFAULT_NPC_ID];
 
+/**
+ * 功能：获取当前激活 NPC 的ID
+ * Description: Get active NPC ID
+ */
 export const getActiveNpcId = (): string => ACTIVE_NPC_PRESET.profile.id;
 
+/**
+ * 功能：获取当前激活 NPC 的角色模型副本
+ * Description: Get cloned character model of active NPC
+ */
 export const getActiveCharacterModel = (): UnifiedCharacterModel =>
   cloneCharacterModel(ACTIVE_NPC_PRESET.characterModelTemplate);
 
+/**
+ * 功能：获取当前 NPC 的本地化文案（按语言回退策略）
+ * Description: Get active NPC localization with language fallback strategy
+ */
 export const getActiveNpcLocalization = (language?: string): CharacterLocalization => {
   const localeKey = normalizeLocale(language);
   const localized = ACTIVE_NPC_PRESET.localizedCopy[localeKey];

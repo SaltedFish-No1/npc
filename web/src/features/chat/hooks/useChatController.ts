@@ -1,3 +1,10 @@
+/**
+ * 文件：web/src/features/chat/hooks/useChatController.ts
+ * 功能描述：聊天核心交互控制器 Hook（鉴权、会话加载、消息发送、流式与图片生成） | Description: Chat controller hook handling auth, session, messaging, streaming and image generation
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖 React Query、i18n、stores 与服务模块
+ */
 import { useState, FormEvent, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -13,6 +20,11 @@ import { normalizeLanguageCode } from '@/config/i18nConfig';
 
 const defaultState = characterStateSchema.parse({});
 
+/**
+ * 功能：提供聊天页面所需的状态与操作
+ * Description: Provide state and actions for chat page
+ * @returns {object} 包含会话、输入、发送与生成头像等方法的对象 | Object with session, input, send and avatar generation methods
+ */
 export function useChatController() {
   const { user, loading: authLoading, error: authError } = useAuth();
   const activeCharacterId = getActiveNpcId();
@@ -38,6 +50,10 @@ export function useChatController() {
 
   const state = session?.characterState ?? defaultState;
 
+  /**
+   * 业务规则：根据压力选择提示词并生成头像；成功后本地回写会话
+   * Description: Pick mood prompt by stress and generate avatar; then persist session locally
+   */
   const handleGenerateAvatar = async () => {
     if (!user?.uid || !session) return;
     setIsGenerating(true);
@@ -78,12 +94,21 @@ export function useChatController() {
     }
   };
 
+  /**
+   * 业务规则：重置会话并清理查询缓存
+   * Description: Reset session and clear query cache
+   */
   const handleResetSession = async () => {
     if (!user?.uid) return;
     await resetSession(user.uid, activeCharacterId, targetLanguage);
     queryClient.removeQueries({ queryKey: sessionQueryKey });
   };
 
+  /**
+   * 复杂算法：流式消息发送与乐观更新
+   * 中文：先乐观追加用户消息；流式过程中聚合 `chunk`；若 AI 请求图片则并行生成并合并结果；失败则回滚
+   * English: Optimistically append user message; aggregate streaming chunks; branch to image generation if requested; rollback on failure
+   */
   const sendMessage = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || !user?.uid || !session || isSending) return;

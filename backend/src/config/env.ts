@@ -1,3 +1,10 @@
+/**
+ * 文件：backend/src/config/env.ts
+ * 功能描述：加载并校验环境变量，提供应用配置（含鉴权KEY合并规则） | Description: Load and validate environment variables, providing app config with auth key resolution
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖 dotenv 与 zod；被启动流程与服务使用
+ */
 import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
 
@@ -28,6 +35,11 @@ export type AppConfig = RawAppConfig & { NPC_GATEWAY_KEY: string };
 
 let cached: AppConfig | null = null;
 
+/**
+ * 功能：读取并缓存应用配置；将 `NPC_GATEWAY_KEY` 为空时回退为 `LLM_API_AUTH_TOKEN`
+ * Description: Read and cache app configuration; fallback `NPC_GATEWAY_KEY` to `LLM_API_AUTH_TOKEN` when missing
+ * @returns {AppConfig} 应用配置对象 | Application configuration object
+ */
 export const getConfig = (): AppConfig => {
   if (cached) {
     return cached;
@@ -50,6 +62,9 @@ export const getConfig = (): AppConfig => {
     throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
   }
 
+  // 业务关键逻辑：鉴权KEY合并
+  // 中文：若未显式提供 `NPC_GATEWAY_KEY`，使用 `LLM_API_AUTH_TOKEN` 以保持网关与上游一致
+  // English: If `NPC_GATEWAY_KEY` is not set, reuse `LLM_API_AUTH_TOKEN` to align gateway and upstream
   const resolved: AppConfig = {
     ...parsed.data,
     NPC_GATEWAY_KEY: parsed.data.NPC_GATEWAY_KEY ?? parsed.data.LLM_API_AUTH_TOKEN

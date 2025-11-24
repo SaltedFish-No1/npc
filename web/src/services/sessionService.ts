@@ -1,3 +1,10 @@
+/**
+ * 文件：web/src/services/sessionService.ts
+ * 功能描述：前端会话读写/订阅服务（内存+localStorage 双层缓存） | Description: Frontend session service with memory + localStorage cache and subscriptions
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖 env 配置与后端接口封装
+ */
 import { SessionData } from '@/schemas/chat';
 import { getAppId } from '@/config/env';
 import { activateCharacterSession } from '@/services/chatService';
@@ -72,6 +79,10 @@ const ensureSessionListeners = (userId: string, characterId: string, languageCod
   return subscribers.get(key)!;
 };
 
+/**
+ * 功能：激活或复用后端会话，并缓存本地
+ * Description: Activate or reuse backend session and cache locally
+ */
 export const fetchSession = async (
   userId: string,
   params: { characterId: string; languageCode: string; signal?: AbortSignal }
@@ -89,6 +100,10 @@ export const fetchSession = async (
   return session;
 };
 
+/**
+ * 功能：持久化会话快照到本地缓存并通知订阅者
+ * Description: Persist session snapshot to local cache and notify subscribers
+ */
 export const persistSessionSnapshot = (
   userId: string,
   characterId: string,
@@ -98,6 +113,10 @@ export const persistSessionSnapshot = (
   writeSession(userId, characterId, languageCode, session);
 };
 
+/**
+ * 功能：订阅会话变更（立即发送快照）
+ * Description: Subscribe to session changes (send snapshot immediately)
+ */
 export const subscribeSession = (
   userId: string,
   characterId: string,
@@ -126,6 +145,10 @@ export const subscribeSession = (
   };
 };
 
+/**
+ * 功能：重置本地会话缓存并清理订阅者
+ * Description: Reset local session cache and clean subscribers
+ */
 export const resetSession = async (userId: string, characterId: string, languageCode: string) => {
   const key = cacheKey(userId, characterId, languageCode);
   memoryStore.delete(key);

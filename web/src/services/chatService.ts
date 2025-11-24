@@ -1,3 +1,10 @@
+/**
+ * 文件：web/src/services/chatService.ts
+ * 功能描述：前端 NPC 后端接口封装，含角色、聊天SSE与图片生成 | Description: Frontend service wrapping NPC backend APIs for characters, chat SSE and image generation
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖常量与 Zod 模型
+ */
 import { z } from 'zod';
 
 import { NPC_API_BASE_URL, NPC_API_KEY } from '@/config/constants';
@@ -76,6 +83,10 @@ const performJsonRequest = async <T>(
   return schema.parse(data);
 };
 
+/**
+ * 功能：获取角色列表，支持按语言过滤
+ * Description: Fetch character list with optional language filtering
+ */
 export const fetchCharacters = async (params?: {
   languageCode?: string;
   signal?: AbortSignal;
@@ -87,6 +98,10 @@ export const fetchCharacters = async (params?: {
   });
 };
 
+/**
+ * 功能：激活角色并创建/复用会话
+ * Description: Activate character and create/reuse session
+ */
 export const activateCharacterSession = async (params: {
   characterId: string;
   sessionId?: string;
@@ -119,6 +134,7 @@ export const activateCharacterSession = async (params: {
   });
 };
 
+/** SSE 事件说明：chunk（文本片段）、final（最终payload）、end（结束） */
 type StreamChatParams = {
   sessionId?: string;
   characterId: string;
@@ -128,6 +144,10 @@ type StreamChatParams = {
   signal?: AbortSignal;
 };
 
+/**
+ * 功能：以 SSE 流式发送聊天请求并处理事件
+ * Description: Send chat via SSE and handle events
+ */
 export const streamChatCompletion = async (
   params: StreamChatParams
 ): Promise<ChatTurnResponse> => {
@@ -231,6 +251,10 @@ export const streamChatCompletion = async (
   return finalPayload;
 };
 
+/**
+ * 功能：触发图片生成（可选：使用会话 image_prompt、更新头像）
+ * Description: Trigger image generation (optional: use session image_prompt, update avatar)
+ */
 export const generateImage = async (params: {
   sessionId?: string;
   characterId: string;

@@ -1,5 +1,16 @@
+/**
+ * 文件：web/src/schemas/character.ts
+ * 功能描述：统一角色模型（Zod）与模板工具 | Description: Unified character model (Zod) and template utilities
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖 zod 与 JSON deepClone
+ */
 import { z } from 'zod';
 
+/**
+ * 功能：深拷贝对象（优先使用 structuredClone）
+ * Description: Deep clone using structuredClone if available
+ */
 const deepClone = <T>(value: T): T => {
   if ('structuredClone' in globalThis) {
     return (globalThis.structuredClone as <U>(input: U) => U)(value);
@@ -128,6 +139,7 @@ const stateGoalsSchema = z.object({
   active_plans: z.array(planSchema)
 });
 
+/** 统一角色模型 | Unified character model schema */
 export const unifiedCharacterModelSchema = z.object({
   ...identifierSchema.shape,
   core_vitals: coreVitalsSchema,
@@ -255,10 +267,19 @@ const mobCharacterModelTemplate: UnifiedCharacterModel = {
   }
 };
 
+/** Mob 角色模型模板 | Mob character model template */
 export const MOB_CHARACTER_MODEL_TEMPLATE = mobCharacterModelTemplate;
 
+/**
+ * 功能：克隆角色模型模板
+ * Description: Clone character model template
+ */
 export const cloneCharacterModel = (template: UnifiedCharacterModel): UnifiedCharacterModel =>
   deepClone(template);
 
+/**
+ * 功能：创建默认的统一角色模型（基于 Mob 模板）
+ * Description: Create default unified character model (Mob template)
+ */
 export const createDefaultUnifiedCharacterModel = (): UnifiedCharacterModel =>
   cloneCharacterModel(mobCharacterModelTemplate);

@@ -1,3 +1,10 @@
+/**
+ * 文件：web/src/features/chat/ChatFeature.tsx
+ * 功能描述：聊天页面骨架与组合，连接核心交互控制器与UI组件 | Description: Chat page scaffold composing UI and hooking into controller
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：依赖 Zustand stores、i18n、控制器与各子组件
+ */
 import { useEffect, useMemo } from 'react';
 import { Bug } from 'lucide-react';
 import styles from './styles/ChatPage.module.css';
@@ -20,6 +27,11 @@ import { DebugPanel } from './components/DebugPanel/DebugPanel';
 import { SettingsModal } from './components/SettingsModal/SettingsModal';
 import { ChatHeader } from './components/ChatHeader/ChatHeader';
 
+/**
+ * 功能：渲染聊天页面并处理语言切换、头像占位与调试面板
+ * Description: Render chat page, handle language switching, avatar fallback, and debug panel
+ * @returns {JSX.Element} 聊天页面 | Chat page
+ */
 export default function ChatFeature() {
   const { settingsOpen, debugOpen, toggleSettings, toggleDebug } = useUIStore();
   const { systemLogs } = useChatStore();
@@ -76,6 +88,11 @@ export default function ChatFeature() {
     );
   }
 
+  /**
+   * 业务规则：语言切换
+   * 中文：当选择与当前语言相同则忽略，否则触发 i18n 切换
+   * English: Ignore if selecting current language; otherwise change via i18n
+   */
   const handleLanguageChange = (code: string) => {
     if (code === currentLanguage) return;
     i18n.changeLanguage(code);

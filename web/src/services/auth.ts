@@ -1,3 +1,10 @@
+/**
+ * 文件：web/src/services/auth.ts
+ * 功能描述：匿名鉴权服务，提供用户ID生成、持久化与订阅 | Description: Anonymous auth service providing user ID generation, persistence and subscriptions
+ * 作者：NPC 项目组  ·  版本：v1.0.0
+ * 创建日期：2025-11-24  ·  最后修改：2025-11-24
+ * 依赖说明：使用浏览器 localStorage
+ */
 const STORAGE_KEY = 'npc_anon_user_id';
 type Listener = (user: AnonymousUser | null) => void;
 
@@ -38,6 +45,11 @@ const notify = () => {
   listeners.forEach((listener) => listener(currentUser));
 };
 
+/**
+ * 功能：确保存在匿名用户（读取存储或生成新ID）
+ * Description: Ensure an anonymous user exists (from storage or generate new)
+ * @returns {Promise<AnonymousUser>} 匿名用户 | Anonymous user
+ */
 export const ensureAuth = async (): Promise<AnonymousUser> => {
   if (currentUser) return currentUser;
 
@@ -55,6 +67,10 @@ export const ensureAuth = async (): Promise<AnonymousUser> => {
   return created;
 };
 
+/**
+ * 功能：订阅匿名用户变更（立即推送当前值）
+ * Description: Subscribe to anonymous user changes (push current value immediately)
+ */
 export const subscribeAuth = (cb: Listener) => {
   listeners.add(cb);
   cb(currentUser);
@@ -63,6 +79,10 @@ export const subscribeAuth = (cb: Listener) => {
   };
 };
 
+/**
+ * 功能：登出匿名用户并清理存储
+ * Description: Sign out anonymous user and clear storage
+ */
 export const signOut = () => {
   currentUser = null;
   if (isBrowser) {
