@@ -5,7 +5,7 @@ import { Brain, Image as ImageIcon } from 'lucide-react';
 import styles from './ChatMessages.module.css';
 import { ChatMessage, CharacterState } from '@/schemas/chat';
 import { FALLBACK_USER_AVATAR } from '@/config/constants';
-import { CHARACTER_PROFILE, USER_PROFILE } from '@/config/characterProfile';
+import { USER_PROFILE } from '@/config/characterProfile';
 
 type ChatMessagesProps = {
   messages: ChatMessage[];
@@ -16,6 +16,7 @@ type ChatMessagesProps = {
   hasMoreHistory?: boolean;
   isHistoryLoading?: boolean;
   onLoadMore?: () => void;
+  characterCodename: string;
 };
 
 export function ChatMessages({
@@ -26,7 +27,8 @@ export function ChatMessages({
   isThinking,
   hasMoreHistory = false,
   isHistoryLoading = false,
-  onLoadMore
+  onLoadMore,
+  characterCodename
 }: ChatMessagesProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -53,6 +55,12 @@ export function ChatMessages({
       {!isBooting &&
         messages.map((msg, idx) => {
           const isAssistant = msg.role === 'assistant';
+          const assistantThought = (msg.thought ?? '').trim();
+          const showDebugRibbon =
+            isAssistant &&
+            (msg.stressChange !== undefined ||
+              msg.trustChange !== undefined ||
+              msg.currentStress !== undefined);
           return (
             <div
               key={msg.messageId ?? `${msg.role}-${msg.createdAt ?? idx}-${idx}`}
@@ -64,14 +72,14 @@ export function ChatMessages({
               <div className={styles.avatarSmall}>
                 <img
                   src={isAssistant ? avatar : FALLBACK_USER_AVATAR}
-                  alt={isAssistant ? CHARACTER_PROFILE.codename : USER_PROFILE.displayName}
+                  alt={isAssistant ? characterCodename : USER_PROFILE.displayName}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>
               <div className={classNames(styles.bubble, { [styles.userBubble]: !isAssistant })}>
-                {isAssistant && msg.thought && (
+                {isAssistant && assistantThought && (
                   <p className={styles.thought}>
-                    <Brain size={12} /> {msg.thought}
+                    <Brain size={12} /> {assistantThought}
                   </p>
                 )}
                 <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{msg.content}</div>
@@ -87,7 +95,7 @@ export function ChatMessages({
                     </div>
                   </div>
                 )}
-                {isAssistant && (
+                {showDebugRibbon && (
                   <div className={styles.debugRibbon}>
                     {t('chat.messages.debug', {
                       stress: msg.stressChange ?? 0,
@@ -105,7 +113,7 @@ export function ChatMessages({
           <div className={styles.avatarSmall}>
             <img
               src={avatar}
-              alt={CHARACTER_PROFILE.codename}
+              alt={characterCodename}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           </div>

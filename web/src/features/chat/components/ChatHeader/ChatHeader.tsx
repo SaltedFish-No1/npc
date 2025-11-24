@@ -1,13 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { SUPPORTED_LANGUAGES } from '@/config/i18nConfig';
 import styles from '../../styles/ChatPage.module.css';
 import { useTranslation } from 'react-i18next';
-import {
-  CHARACTER_PROFILE,
-  NPC_STORAGE_KEY,
-  getActiveNpcId,
-  getNpcOptions
-} from '@/config/characterProfile';
+import type { CharacterProfile } from '@/config/characterProfile';
+import type { CharacterSummary } from '@/services/chatService';
 
 type ChatHeaderProps = {
   isBooting: boolean;
@@ -16,6 +12,10 @@ type ChatHeaderProps = {
   onLanguageChange: (code: string) => void;
   appSubtitle?: string;
   onNpcChange?: (id: string) => Promise<void> | void;
+  npcOptions: CharacterSummary[];
+  activeNpcId: string;
+  npcOptionsLoading?: boolean;
+  profile: CharacterProfile;
 };
 
 export function ChatHeader({
@@ -24,36 +24,23 @@ export function ChatHeader({
   currentLanguage,
   onLanguageChange,
   appSubtitle,
-  onNpcChange
+  onNpcChange,
+  npcOptions,
+  activeNpcId,
+  npcOptionsLoading,
+  profile
 }: ChatHeaderProps) {
   const { t } = useTranslation();
-  const npcOptions = useMemo(() => getNpcOptions(), []);
-  const [selectedNpcId, setSelectedNpcId] = useState(() => getActiveNpcId());
   const [isSwitching, setIsSwitching] = useState(false);
 
   const handleNpcChange = async (nextId: string) => {
-    if (nextId === selectedNpcId || isSwitching) return;
-    setSelectedNpcId(nextId);
+    if (nextId === activeNpcId || isSwitching) return;
     setIsSwitching(true);
-
-    if (typeof window === 'undefined') {
-      setIsSwitching(false);
-      return;
-    }
 
     try {
       if (onNpcChange) {
         await onNpcChange(nextId);
       }
-
-      try {
-        window.localStorage?.setItem(NPC_STORAGE_KEY, nextId);
-      } catch {
-        // ignore storage failures
-      }
-
-      (window as Window & { __npc_id?: string }).__npc_id = nextId;
-      window.location.reload();
     } catch (error) {
       console.error('Failed to handle NPC change', error);
     } finally {
@@ -64,8 +51,8 @@ export function ChatHeader({
   return (
     <div className={styles.chatHeader}>
       <div className={styles.chatTitle}>
-        <h2>{CHARACTER_PROFILE.codename}</h2>
-        <p className={styles.chatSubtitle}>{CHARACTER_PROFILE.tagline}</p>
+        <h2>{profile.codename}</h2>
+        <p className={styles.chatSubtitle}>{profile.tagline}</p>
         {appSubtitle && <p className={styles.chatSubline}>{appSubtitle}</p>}
       </div>
 
@@ -94,15 +81,20 @@ export function ChatHeader({
           <span>{t('chat.header.character')}</span>
           <select
             className={styles.languageSelect}
-            value={selectedNpcId}
+            value={activeNpcId}
             onChange={(event) => handleNpcChange(event.target.value)}
-            disabled={isSwitching}
+            disabled={isSwitching || npcOptionsLoading || npcOptions.length === 0}
           >
             {npcOptions.map((option) => (
-              <option key={option.id} value={option.id} title={option.tagline}>
-                {option.codename}
+              <option key={option.id} value={option.id} title={option.name}>
+                {option.display?.chatTitle ?? option.codename ?? option.name}
               </option>
             ))}
+            {!npcOptions.length && (
+              <option value="" disabled>
+                {t('chat.header.connecting')}
+              </option>
+            )}
           </select>
         </label>
       </div>

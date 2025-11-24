@@ -68,7 +68,13 @@ const buildAvatarUrl = (seed: string) => {
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/500/500`;
 };
 
-const buildFallbackAvatars = (seedName: string) => {
+/**
+ * 功能：根据角色名称构建占位头像链接（正常/崩溃态）
+ * Description: Build deterministic fallback avatar URLs using the character seed name
+ * @param {string} seedName - 角色名称或标识 | Character name or identifier
+ * @returns {{normal:string;broken:string}} 两态占位头像 | Placeholder avatars for normal/broken states
+ */
+export const buildFallbackAvatars = (seedName: string) => {
   const seedBase = sanitizeSeed(seedName, 'npc');
   return {
     normal: buildAvatarUrl(`${seedBase}Normal`),
@@ -556,6 +562,12 @@ export const getNpcPreset = (id: string): NpcPreset =>
   NPC_PRESETS[id] ?? NPC_PRESETS[DEFAULT_NPC_ID];
 
 /**
+ * 功能：按ID获取 NPC Profile（若不存在则回退默认）
+ * Description: Resolve NPC profile by id with default fallback
+ */
+export const getNpcProfile = (id: string): CharacterProfile => getNpcPreset(id).profile;
+
+/**
  * 功能：获取当前激活 NPC 的ID
  * Description: Get active NPC ID
  */
@@ -569,21 +581,32 @@ export const getActiveCharacterModel = (): UnifiedCharacterModel =>
   cloneCharacterModel(ACTIVE_NPC_PRESET.characterModelTemplate);
 
 /**
- * 功能：获取当前 NPC 的本地化文案（按语言回退策略）
- * Description: Get active NPC localization with language fallback strategy
+ * 功能：按 ID 获取 NPC 本地化文案（含语言回退）
+ * Description: Resolve NPC localization copy by id with fallback strategy
  */
-export const getActiveNpcLocalization = (language?: string): CharacterLocalization => {
+export const getNpcLocalization = (npcId: string, language?: string): CharacterLocalization => {
+  const preset = getNpcPreset(npcId);
   const localeKey = normalizeLocale(language);
-  const localized = ACTIVE_NPC_PRESET.localizedCopy[localeKey];
+  const localized = preset.localizedCopy[localeKey];
   if (localized) return localized;
 
   const fallback =
-    ACTIVE_NPC_PRESET.localizedCopy[DEFAULT_LOCALE] ??
-    ACTIVE_NPC_PRESET.localizedCopy[Object.keys(ACTIVE_NPC_PRESET.localizedCopy)[0]];
+    preset.localizedCopy[DEFAULT_LOCALE] ??
+    preset.localizedCopy[Object.keys(preset.localizedCopy)[0]];
 
-  if (!fallback) {
-    throw new Error('No localization configured for active NPC');
+  if (fallback) {
+    return fallback;
   }
 
-  return fallback;
+  return {
+    appTitle: preset.profile.codename,
+    appSubtitle: preset.profile.tagline
+  };
 };
+
+/**
+ * 功能：获取当前 NPC 的本地化文案（按语言回退策略）
+ * Description: Get active NPC localization with language fallback strategy
+ */
+export const getActiveNpcLocalization = (language?: string): CharacterLocalization =>
+  getNpcLocalization(getActiveNpcId(), language);

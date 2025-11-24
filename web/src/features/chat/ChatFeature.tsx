@@ -5,17 +5,22 @@
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 Zustand stores、i18n、控制器与各子组件
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDraggable } from '@/hooks/useDraggable';
 import { Bug } from 'lucide-react';
 import styles from './styles/ChatPage.module.css';
 import { useUIStore } from '@/stores/uiStore';
 import { useChatStore } from '@/stores/chatStore';
 import { ChatMessage } from '@/schemas/chat';
-import { FALLBACK_AVATAR_BROKEN, FALLBACK_AVATAR_NORMAL } from '@/config/constants';
 import { useTranslation } from 'react-i18next';
 import { normalizeLanguageCode } from '@/config/i18nConfig';
-import { getActiveNpcLocalization } from '@/config/characterProfile';
+import {
+  NPC_STORAGE_KEY,
+  buildFallbackAvatars,
+  getActiveNpcId,
+  getNpcLocalization,
+  getNpcPreset
+} from '@/config/characterProfile';
 
 import { useChatController } from './hooks/useChatController';
 import { ChatSidebar } from './components/ChatSidebar/ChatSidebar';
@@ -24,6 +29,7 @@ import { ChatInput } from './components/ChatInput/ChatInput';
 import { DebugPanel } from './components/DebugPanel/DebugPanel';
 import { SettingsModal } from './components/SettingsModal/SettingsModal';
 import { ChatHeader } from './components/ChatHeader/ChatHeader';
+import { useCharacterRoster } from '@/hooks/useCharacterRoster';
 
 const DEBUG_PANEL_SIZE = { width: 360, height: 520 } as const;
 const DEBUG_BUTTON_SIZE = { width: 56, height: 56 } as const;
@@ -41,10 +47,21 @@ export default function ChatFeature() {
   const { settingsOpen, debugOpen, toggleSettings, toggleDebug } = useUIStore();
   const { systemLogs } = useChatStore();
   const { t, i18n } = useTranslation();
+  const [activeCharacterId, setActiveCharacterId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(NPC_STORAGE_KEY);
+      if (stored) {
+        return stored;
+      }
+    }
+    return getActiveNpcId();
+  });
 
   const {
     session,
     state,
+    personaRuntime,
+    personaHighlights,
     input,
     setInput,
     liveContent,
@@ -56,30 +73,86 @@ export default function ChatFeature() {
     sessionPending,
     sessionError,
     handleGenerateAvatar,
-    handleResetSession,
     sendMessage,
     loadOlderMessages,
     hasMoreHistory,
     isHistoryLoading
-  } = useChatController();
+  } = useChatController(activeCharacterId);
 
   const isBroken = state.mode === 'BROKEN' || state.mode === '???%' || state.stress >= 99;
-  const avatar = useMemo(() => {
-    if (!state.avatarUrl) {
-      return isBroken ? FALLBACK_AVATAR_BROKEN : FALLBACK_AVATAR_NORMAL;
-    }
-    return state.avatarUrl;
-  }, [state.avatarUrl, isBroken]);
 
+  const currentLanguage = normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language);
+  const {
+    data: characterRoster = [],
+    isPending: charactersPending
+  } = useCharacterRoster(currentLanguage);
+
+  useEffect(() => {
+    if (!characterRoster.length) return;
+    if (!characterRoster.some((character) => character.id === activeCharacterId)) {
+      setActiveCharacterId(characterRoster[0].id);
+    }
+  }, [characterRoster, activeCharacterId]);
+
+  const activePreset = useMemo(() => getNpcPreset(activeCharacterId), [activeCharacterId]);
+  const activeProfile = activePreset.profile;
   const messages: ChatMessage[] = useMemo(() => session?.messages ?? [], [session]);
   const isThinking = isSending || Boolean(liveContent);
 
   const isBooting = authLoading || sessionPending || !session;
-  const currentLanguage = normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language);
-  const npcLocalization = useMemo(
-    () => getActiveNpcLocalization(currentLanguage),
-    [currentLanguage]
+  const activeCharacterSummary = useMemo(
+    () => characterRoster.find((character) => character.id === activeCharacterId),
+    [characterRoster, activeCharacterId]
   );
+
+  const displayOverrides = activeCharacterSummary?.display;
+  const inputPlaceholder = displayOverrides?.inputPlaceholder;
+
+  // 将后端 display 文案覆盖到前端预设，保持 fallback 逻辑不变
+  const profileForDisplay = useMemo(() => {
+    const summary = activeCharacterSummary;
+    const fallbackAvatars = summary
+      ? buildFallbackAvatars(summary.name ?? summary.codename ?? summary.id)
+      : activeProfile.fallbackAvatars;
+
+    return {
+      ...activeProfile,
+      id: summary?.id ?? activeProfile.id,
+      defaultName: summary?.name ?? activeProfile.defaultName,
+      codename: displayOverrides?.chatTitle ?? summary?.codename ?? activeProfile.codename,
+      tagline: displayOverrides?.chatSubline ?? activeProfile.tagline,
+      statuses: {
+        ...activeProfile.statuses,
+        normal: displayOverrides?.statusLine?.normal ?? activeProfile.statuses.normal,
+        broken: displayOverrides?.statusLine?.broken ?? activeProfile.statuses.broken
+      },
+      fallbackAvatars
+    };
+  }, [activeProfile, activeCharacterSummary, displayOverrides]);
+
+  const npcOptions = characterRoster;
+  const npcLocalization = useMemo(
+    () => getNpcLocalization(activeCharacterId, currentLanguage),
+    [activeCharacterId, currentLanguage]
+  );
+
+  const resolvedAppTitle =
+    displayOverrides?.title ??
+    npcLocalization?.appTitle ??
+    activeCharacterSummary?.codename ??
+    profileForDisplay.codename;
+  const resolvedAppSubtitle =
+    displayOverrides?.subtitle ?? npcLocalization?.appSubtitle ?? profileForDisplay.tagline;
+
+  const avatar = useMemo(() => {
+    if (state.avatarUrl) {
+      return state.avatarUrl;
+    }
+    if (activeCharacterSummary?.avatarUrl) {
+      return activeCharacterSummary.avatarUrl;
+    }
+    return isBroken ? profileForDisplay.fallbackAvatars.broken : profileForDisplay.fallbackAvatars.normal;
+  }, [state.avatarUrl, isBroken, profileForDisplay, activeCharacterSummary]);
 
   const initialPanelPosition = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -99,10 +172,10 @@ export default function ChatFeature() {
   });
 
   useEffect(() => {
-    if (npcLocalization?.appTitle) {
-      document.title = npcLocalization.appTitle;
+    if (resolvedAppTitle) {
+      document.title = resolvedAppTitle;
     }
-  }, [npcLocalization]);
+  }, [resolvedAppTitle]);
 
   if (authError || sessionError) {
     return (
@@ -123,6 +196,19 @@ export default function ChatFeature() {
     await i18n.changeLanguage(code);
   };
 
+  const handleNpcChange = async (id: string) => {
+    if (!id || id === activeCharacterId) return;
+    setActiveCharacterId(id);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem(NPC_STORAGE_KEY, id);
+      } catch {
+        // ignore storage persistence failures
+      }
+      (window as Window & { __npc_id?: string }).__npc_id = id;
+    }
+  };
+
   const handleToggleDebug = () => {
     if (debugDock.isDragging) return;
     toggleDebug();
@@ -139,6 +225,9 @@ export default function ChatFeature() {
           isGenerating={isGenerating}
           onToggleSettings={toggleSettings}
           onGenerateAvatar={handleGenerateAvatar}
+          profile={profileForDisplay}
+          personaRuntime={personaRuntime}
+          personaHighlights={personaHighlights}
         />
 
         <section className={styles.chatPanel}>
@@ -147,8 +236,12 @@ export default function ChatFeature() {
             messageCount={session?.messages.length ?? 0}
             currentLanguage={currentLanguage}
             onLanguageChange={handleLanguageChange}
-            appSubtitle={npcLocalization?.appSubtitle}
-            onNpcChange={handleResetSession}
+            appSubtitle={resolvedAppSubtitle}
+            onNpcChange={handleNpcChange}
+            npcOptions={npcOptions}
+            activeNpcId={activeCharacterId}
+            npcOptionsLoading={charactersPending}
+            profile={profileForDisplay}
           />
 
           <ChatMessages
@@ -160,6 +253,7 @@ export default function ChatFeature() {
             onLoadMore={hasMoreHistory ? loadOlderMessages : undefined}
             hasMoreHistory={hasMoreHistory}
             isHistoryLoading={isHistoryLoading}
+            characterCodename={profileForDisplay.codename}
           />
 
           <ChatInput
@@ -168,6 +262,8 @@ export default function ChatFeature() {
             isSending={isSending}
             isBooting={isBooting}
             onSend={sendMessage}
+            characterName={profileForDisplay.defaultName}
+            placeholderOverride={inputPlaceholder}
           />
         </section>
       </div>
@@ -191,6 +287,7 @@ export default function ChatFeature() {
         onClose={toggleDebug}
         systemLogs={systemLogs}
         state={state}
+        personaRuntime={personaRuntime}
         draftImagePrompt={draftImagePrompt}
         draggableProps={{
           position: debugDock.position,

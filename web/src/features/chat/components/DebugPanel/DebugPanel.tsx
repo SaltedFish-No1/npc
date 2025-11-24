@@ -1,16 +1,18 @@
 import classNames from 'classnames';
-import { AlertTriangle, Brain, Image as ImageIcon, Terminal } from 'lucide-react';
+import { AlertTriangle, Brain, Image as ImageIcon, PanelsTopLeft, Terminal } from 'lucide-react';
 import styles from './DebugPanel.module.css';
 import { CharacterState } from '@/schemas/chat';
 import { SystemLog } from '@/stores/chatStore';
 import { useTranslation } from 'react-i18next';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { DigitalPersonaRuntimeState } from '@/schemas/persona';
 
 type DebugPanelProps = {
   isOpen: boolean;
   onClose: () => void;
   systemLogs: SystemLog[];
   state: CharacterState;
+  personaRuntime?: DigitalPersonaRuntimeState;
   draftImagePrompt?: string;
   draggableProps?: {
     position: { x: number; y: number };
@@ -24,6 +26,7 @@ export function DebugPanel({
   onClose,
   systemLogs,
   state,
+  personaRuntime,
   draftImagePrompt,
   draggableProps
 }: DebugPanelProps) {
@@ -79,6 +82,16 @@ export function DebugPanel({
             <pre style={{ margin: 0 }}>{JSON.stringify(state, null, 2)}</pre>
           </div>
         </div>
+        {personaRuntime && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>
+              <PanelsTopLeft size={12} /> {t('chat.debug.personaRuntime')}
+            </h4>
+            <div className={styles.stateSnapshot}>
+              <pre style={{ margin: 0 }}>{JSON.stringify(personaRuntime, null, 2)}</pre>
+            </div>
+          </div>
+        )}
         {draftImagePrompt && (
           <div className={styles.section}>
             <h4 className={styles.sectionTitle}>

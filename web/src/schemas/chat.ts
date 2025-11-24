@@ -8,12 +8,13 @@
 import { z } from 'zod';
 import { CHARACTER_PROFILE } from '@/config/characterProfile';
 import { unifiedCharacterModelSchema } from '@/schemas/character';
+import { digitalPersonaRuntimeStateSchema, personaRuntimeHighlightsSchema } from '@/schemas/persona';
 
 /** 角色状态 | Character state */
 export const characterStateSchema = z.object({
   stress: z.number().min(0).max(100).default(0),
-  trust: z.number().min(0).max(100).default(50),
-  mode: z.enum(['NORMAL', 'ELEVATED', 'BROKEN', '???%']).default('NORMAL'),
+  trust: z.number().min(-100).max(100).default(50),
+  mode: z.string().default('NORMAL'),
   name: z.string().default(CHARACTER_PROFILE.defaultName),
   avatarUrl: z.string().url().optional().or(z.literal('')),
   avatarId: z.string().optional(),
@@ -52,7 +53,10 @@ export const sessionSchema = z.object({
   version: z.number().optional(),
   characterState: characterStateSchema,
   characterModel: unifiedCharacterModelSchema.optional(),
-  messages: z.array(chatMessageSchema)
+  messages: z.array(chatMessageSchema),
+  personaId: z.string().optional(),
+  personaRuntime: digitalPersonaRuntimeStateSchema.optional(),
+  personaHighlights: personaRuntimeHighlightsSchema.optional()
 });
 
 export type SessionData = z.infer<typeof sessionSchema>;
@@ -63,7 +67,10 @@ export const chatTurnResponseSchema = z.object({
   characterState: characterStateSchema,
   assistantMessage: chatMessageSchema,
   imagePrompt: z.string().optional(),
-  sessionVersion: z.number().optional()
+  sessionVersion: z.number().optional(),
+  personaId: z.string().optional(),
+  personaRuntime: digitalPersonaRuntimeStateSchema.optional(),
+  personaHighlights: personaRuntimeHighlightsSchema.optional()
 });
 
 export type ChatTurnResponse = z.infer<typeof chatTurnResponseSchema>;

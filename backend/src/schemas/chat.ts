@@ -7,11 +7,13 @@
  */
 import { z } from 'zod';
 
+import { digitalPersonaRuntimeStateSchema } from './persona.js';
+
 /** 角色状态 | Character state */
 export const characterStateSchema = z.object({
   stress: z.number().min(0).max(100),
-  trust: z.number().min(0).max(100),
-  mode: z.enum(['NORMAL', 'ELEVATED', 'BROKEN']).default('NORMAL'),
+  trust: z.number().min(-100).max(100),
+  mode: z.string().default('NORMAL'),
   name: z.string().optional(),
   avatarUrl: z.string().url().optional(),
   avatarId: z.string().optional(),
@@ -56,7 +58,9 @@ export const sessionDataSchema = z.object({
   updatedAt: z.number(),
   version: z.number(),
   characterState: characterStateSchema,
-  messages: z.array(chatMessageSchema)
+  messages: z.array(chatMessageSchema),
+  personaId: z.string().optional(),
+  personaRuntime: digitalPersonaRuntimeStateSchema.optional()
 });
 
 export type SessionData = z.infer<typeof sessionDataSchema>;

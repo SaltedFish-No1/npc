@@ -1,6 +1,6 @@
 /**
  * 文件：web/src/features/chat/hooks/useChatController.ts
- * 功能描述：聊天核心交互控制器 Hook（鉴权、会话加载、消息发送、流式与图片生成） | Description: Chat controller hook handling auth, session, messaging, streaming and image generation
+ * 功能描述：聊天核心交互控制器 Hook（鉴权、会话加载、消息发送、暂时禁用流式的回合与图片生成） | Description: Chat controller hook handling auth, session, non-stream messaging, and image generation
  * 作者：Haotian Chen  ·  版本：v1.0.0
  * 创建日期：2025-11-24  ·  最后修改：2025-11-24
  * 依赖说明：依赖 React Query、i18n、stores 与服务模块
@@ -12,22 +12,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChatSession } from '@/hooks/useChatSession';
 import { useChatStore } from '@/stores/chatStore';
 import { characterStateSchema, ChatMessage, SessionData } from '@/schemas/chat';
-import { streamChatCompletion, generateImage, fetchSessionMessages } from '@/services/chatService';
+import { completeChatTurn, generateImage, fetchSessionMessages } from '@/services/chatService';
 import { persistSessionSnapshot, resetSession } from '@/services/sessionService';
 import { useTranslation } from 'react-i18next';
 import { getActiveNpcId } from '@/config/characterProfile';
 import { normalizeLanguageCode } from '@/config/i18nConfig';
+import { DigitalPersonaRuntimeState, PersonaRuntimeHighlights } from '@/schemas/persona';
 
 const defaultState = characterStateSchema.parse({});
 
 /**
  * 功能：提供聊天页面骨架与组合，连接核心交互控制器与UI组件
  * Description: Provide state and actions for chat page
+ * @param {string} [characterId] 可选角色 ID，未传则使用本地存储中的当前角色 | Optional character id, falls back to locally stored active NPC
  * @returns {object} 包含会话、输入、发送与生成头像等方法的对象 | Object with session, input, send and avatar generation methods
  */
-export function useChatController() {
+export function useChatController(characterId?: string) {
   const { user, loading: authLoading, error: authError } = useAuth();
-  const activeCharacterId = getActiveNpcId();
+  const activeCharacterId = characterId ?? getActiveNpcId();
   const { t, i18n } = useTranslation();
   const targetLanguage = normalizeLanguageCode(i18n.resolvedLanguage ?? i18n.language);
   const sessionQueryKey = useMemo(
@@ -56,6 +58,16 @@ export function useChatController() {
   const hydratedSessionsRef = useRef<Set<string>>(new Set());
 
   const state = session?.characterState ?? defaultState;
+  const personaRuntime: DigitalPersonaRuntimeState | undefined = session?.personaRuntime;
+  const personaHighlights: PersonaRuntimeHighlights | undefined = session?.personaHighlights;
+
+  useEffect(() => {
+    setInput('');
+    setLiveContent('');
+    setDraftImagePrompt(undefined);
+    setHistoryCursor(null);
+    hydratedSessionsRef.current.clear();
+  }, [activeCharacterId]);
 
   useEffect(() => {
     setHistoryCursor(null);
@@ -230,9 +242,9 @@ export function useChatController() {
   };
 
   /**
-   * 复杂算法：流式消息发送与乐观更新
-   * 中文：先乐观追加用户消息；流式过程中聚合 `chunk`；若 AI 请求图片则并行生成并合并结果；失败则回滚
-   * English: Optimistically append user message; aggregate streaming chunks; branch to image generation if requested; rollback on failure
+   * 复杂算法：非流式消息发送与乐观更新
+   * 中文：先乐观追加用户消息；等待一次性响应后合并 AI 消息；若 AI 请求图片则并行生成并合并结果；失败则回滚
+   * English: Optimistically append user message; wait for non-stream response; branch to image generation if requested; rollback on failure
    */
   const sendMessage = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -255,16 +267,15 @@ export function useChatController() {
     setInput('');
 
     try {
-      addLog({ source: 'LLM', message: 'Streaming from NPC backend...' });
-      const ai = await streamChatCompletion({
+      addLog({ source: 'LLM', message: 'Requesting response from NPC backend (non-stream)...' });
+      const ai = await completeChatTurn({
         sessionId: baseSession.sessionId,
         characterId: activeCharacterId,
         languageCode: targetLanguage,
-        message: userMessage.content,
-        onChunk: (chunk) => setLiveContent((prev) => prev + chunk)
+        message: userMessage.content
       });
 
-      addLog({ source: 'LLM', message: 'Parsing AI response' });
+      addLog({ source: 'LLM', message: 'Received response payload' });
       setLiveContent('');
 
       let assistantMessage: ChatMessage = ai.assistantMessage;
@@ -304,7 +315,10 @@ export function useChatController() {
         characterState: ai.characterState,
         messages: [...baseSession.messages, userMessage, assistantMessage],
         updatedAt: Date.now(),
-        version: ai.sessionVersion ?? (baseSession.version ?? 0) + 1
+        version: ai.sessionVersion ?? (baseSession.version ?? 0) + 1,
+        personaId: ai.personaId ?? baseSession.personaId,
+        personaRuntime: ai.personaRuntime ?? baseSession.personaRuntime,
+        personaHighlights: ai.personaHighlights ?? baseSession.personaHighlights
       };
 
       queryClient.setQueryData<SessionData>(sessionQueryKey, nextSession);
@@ -329,6 +343,8 @@ export function useChatController() {
     user,
     session,
     state,
+    personaRuntime,
+    personaHighlights,
     input,
     setInput,
     liveContent,

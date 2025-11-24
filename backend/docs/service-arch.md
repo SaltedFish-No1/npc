@@ -109,8 +109,8 @@ app.addHook('onRequest', async (request, reply) => {
 ### 路由列表
 
 - `GET /health`：健康检查
-- `GET /api/characters`：角色列表
-- `POST /api/characters/:id/activate`：激活角色会话
+- `GET /api/characters`：角色列表（`languageCode` 支持 `zh` 匹配 `zh-CN` 这类前缀，方便前端使用基础语言码筛选）
+- `POST /api/characters/:id/activate`：激活角色会话（附带 `personaId` 与 `personaRuntime` 用于前端初始化）
 - `POST /api/npc/chat`：非流式聊天
 - `POST /api/npc/chat/stream`：SSE 流式聊天
 - `POST /api/npc/images`：图片生成（仅接受 intent/mood，由后端解析提示词）
@@ -119,6 +119,16 @@ app.addHook('onRequest', async (request, reply) => {
 - `GET /api/npc/memory-stream`：记忆流
 
 ## 核心服务与组件
+
+### DigitalPersona v2 集成
+
+- **Schema**：`src/schemas/persona.ts` 定义静态设定（ROM）与运行时状态（RAM），并导出 `DigitalPersonaRuntimePatch` 供增量更新使用。
+- **角色加载**：`CharacterService` 解析角色 YAML 中的 `persona` 字段并缓存，未配置时保持向后兼容。
+- **会话绑定**：`SessionService` 在创建会话时写入 `personaId` 与初始 `personaRuntime`，并提供 `updatePersonaRuntimeState` 方法在每轮对话后刷新压力计、场景目标等字段。
+- **持久化**：DatabaseSessionStore 将运行态 JSON 内嵌到 `sessions.characterState` 列的隐藏键（`__personaRuntime`/`__personaId`）中，无需额外迁移即可恢复数据。
+- **Prompt 使用**：PromptEngine/ChatService 可以直接读取 `session.personaRuntime`，把 `scene_context`、`stress_meter` 等上下文注入系统提示词，使 NPC 语气与剧情同步。
+- **自动写回**：ChatService 根据 AI 的压力变化计算 `DigitalPersonaRuntimePatch`（当前日期、压力计、触发源），并在 `SessionService.appendTurn` 中一并持久化，保证 RAM 状态始终与最新对话对齐。
+- **API 透传**：`/api/characters/:id/activate` 与 `/api/npc/chat(/**)` 会将最新的 `personaId` 与 `personaRuntime` 一并返回，方便前端 Debug Panel 或运营工具直接展示 NPC 的实时心理刻度。
 
 ### 1. ChatService
 
@@ -156,6 +166,20 @@ LLM 服务客户端，支持：
 - 非流式请求
 - SSE 流式响应
 - 错误处理与重试
+- 响应格式锁定：所有文本补全请求都带有 json_schema response_format，对 AI 输出字段进行强约束
+- 容错降级：当上游返回非 JSON（常见于中文自然语言）时记录样本日志并降级为“仅回复最终文本”，避免接口 500
+
+## 新增角色配置指南
+
+1. **复制模板**：以 `config/characters/mob.yaml` 或 `severus_snape.yaml` 为蓝本，新建 `<characterId>.yaml`，确保 `id` 全局唯一（建议使用蛇形英文）。
+2. **必填字段**：`id/name/codename/franchise/contextLine/defaultGreeting/defaultState/languages/capabilities/models` 必须存在，`languages` 至少包含一个值（如 `en` 或 `zh`），可以写成 `en (Fluent)` 这类带注释的字符串，服务会自动提取前缀，否则前端用 `languageCode` 过滤时会被排除。
+3. **默认状态约束**：`defaultState.stress` 需落在 0~100；`defaultState.trust` 可在 -100~100 表达敌意；`defaultState.mode` 允许任意字符串（例如 `GUARDED`、`MANIPULATIVE`），系统在高压时仍会根据压力值推导出 `NORMAL/ELEVATED/BROKEN` 供回退。
+4. **展示与占位**：在 `display.*` 下补充 `title/chatTitle/inputPlaceholder` 等多语言文案，前端会直接使用这些字符串覆盖 UI；未提供时会落回通用占位。
+5. **Persona（可选）**：若角色需要 DigitalPersona v2 行为树，把完整 schema 填到 `persona` 字段，系统会在激活时自动加载运行态。
+6. **热重载提示**：角色 YAML 目前在进程启动时加载，新增/修改文件后请重新启动 `pnpm dev`（或 `pnpm start`）以让缓存刷新；否则前端 roster 将继续看到旧列表。
+7. **前端联动**：Web 端通过 `GET /api/characters?languageCode=xx` 获取 roster，新角色只要满足语言过滤便会自动出现在下拉列表，并在切换时使用 YAML 中的 placeholder/标题。
+
+> Tip：如果角色需要多语言支持，`languages` 和 `display.*` 里的 key 请使用相同的语言码（`zh-CN` 会自动回退到 `zh`）。
 
 ## 数据持久化与缓存
 

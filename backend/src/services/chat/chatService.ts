@@ -8,8 +8,9 @@
 import { PromptEngine } from '../prompt/promptEngine.js';
 import { SessionService } from '../sessions/sessionService.js';
 import { LLMClient } from '../../clients/llmClient.js';
-import { CharacterService } from '../characters/characterService.js';
-import { AIResponse, ChatMessage, SessionData } from '../../schemas/chat.js';
+import { CharacterService, type CharacterProfile } from '../characters/characterService.js';
+import { AIResponse, ChatMessage, SessionData, type CharacterState } from '../../schemas/chat.js';
+import type { DigitalPersonaRuntimePatch, DigitalPersonaRuntimeState } from '../../schemas/persona.js';
 import { MemoryService } from '../memory/memoryService.js';
 import { AvatarService } from '../avatars/avatarService.js';
 
@@ -59,7 +60,8 @@ export class ChatService {
     const systemPrompt = this.promptEngine.buildSystemPrompt({
       character: profile,
       state: params.session.characterState,
-      languageCode: params.session.languageCode
+      languageCode: params.session.languageCode,
+      personaRuntime: params.session.personaRuntime ?? profile.persona?.runtime_state
     });
 
     // 检索长期记忆并注入系统提示
@@ -88,26 +90,35 @@ export class ChatService {
       messages: [...history, { role: 'user' as const, content: latestUserMessage.content }]
     };
 
-    const aiResponse = params.stream
-      ? await this.llmClient.createChatCompletionStream(completionPayload, params.onChunk ?? (() => {}))
-      : await this.llmClient.createChatCompletion(completionPayload);
+    type MaybeFallbackAIResponse = AIResponse & { __fallback?: boolean };
+    const aiResponse = (params.stream
+      ? await this.llmClient.createChatCompletionStream(
+          completionPayload,
+          params.onChunk ?? (() => {})
+        )
+      : await this.llmClient.createChatCompletion(completionPayload)) as MaybeFallbackAIResponse;
+
+    const isFallback = Boolean(aiResponse.__fallback);
+    const stressDelta = isFallback ? 0 : aiResponse.stress_change;
+    const trustDelta = isFallback ? 0 : aiResponse.trust_change;
+    const nextStressSnapshot = clamp(params.session.characterState.stress + stressDelta);
 
     // 业务规则：根据 AI 的 stress/trust 改变量更新角色状态，并保留思考与图片提示
     const assistantMessage: ChatMessage = {
       role: 'assistant',
       content: aiResponse.response,
-      thought: aiResponse.thought,
-      stressChange: aiResponse.stress_change,
-      trustChange: aiResponse.trust_change,
-      currentStress: clamp(params.session.characterState.stress + aiResponse.stress_change),
+      thought: isFallback ? undefined : aiResponse.thought,
+      stressChange: isFallback ? undefined : aiResponse.stress_change,
+      trustChange: isFallback ? undefined : aiResponse.trust_change,
+      currentStress: isFallback ? params.session.characterState.stress : nextStressSnapshot,
       imagePrompt: aiResponse.image_prompt
     };
 
     let updatedState = {
       ...params.session.characterState,
-      stress: clamp(params.session.characterState.stress + aiResponse.stress_change),
-      trust: clamp(params.session.characterState.trust + aiResponse.trust_change),
-      mode: resolveMode(params.session.characterState.stress + aiResponse.stress_change)
+      stress: clamp(params.session.characterState.stress + stressDelta),
+      trust: clamp(params.session.characterState.trust + trustDelta),
+      mode: resolveMode(params.session.characterState.stress + stressDelta)
     };
 
     // 自动切换头像：尝试查找对应当前模式的最新头像
@@ -143,10 +154,19 @@ export class ChatService {
       }
     }
 
+    const personaPatch = this.buildPersonaRuntimePatch({
+      session: params.session,
+      profile,
+      updatedState,
+      latestUserMessage,
+      ai: aiResponse
+    });
+
     const updatedSession = await this.sessionService.appendTurn(params.session.sessionId, {
       userMessage: latestUserMessage,
       assistantMessage,
-      characterState: updatedState
+      characterState: updatedState,
+      personaPatch
     });
 
     // 将本次对话生成记忆（启发式），并写入嵌入
@@ -174,6 +194,56 @@ export class ChatService {
       ai: aiResponse
     };
   }
+
+  /**
+   * 功能：依据当前会话上下文构建 DigitalPersona 运行态增量
+   * Description: Build a DigitalPersonaRuntimePatch using latest stress values, timestamp and triggers
+   */
+  private buildPersonaRuntimePatch(params: {
+    session: SessionData;
+    profile: CharacterProfile;
+    updatedState: CharacterState;
+    latestUserMessage: ChatMessage;
+    ai: AIResponse;
+  }): DigitalPersonaRuntimePatch | undefined {
+    const persona = params.profile.persona;
+    if (!params.session.personaId && !persona) return undefined;
+    const runtime: DigitalPersonaRuntimeState | undefined = params.session.personaRuntime ?? persona?.runtime_state;
+    if (!runtime) return undefined;
+
+    const patch: DigitalPersonaRuntimePatch = {};
+    const now = new Date();
+    patch.temporal_status = {
+      current_date: now.toISOString()
+    };
+    const dob = persona?.static_profile.physiology.date_of_birth;
+    const age = dob ? calculateAge(dob, now) : undefined;
+    if (typeof age === 'number') {
+      patch.temporal_status.calculated_age = age;
+    }
+
+    const stressMeter: DigitalPersonaRuntimePatch['stress_meter'] = {
+      current_level: Math.round(params.updatedState.stress)
+    };
+    const triggers = computeActiveTriggers(
+      runtime.stress_meter?.active_triggers,
+      params.ai.stress_change,
+      params.latestUserMessage
+    );
+    if (triggers) {
+      stressMeter.active_triggers = triggers;
+    }
+    patch.stress_meter = stressMeter;
+
+    if (!Object.keys(patch.temporal_status ?? {}).length) {
+      delete patch.temporal_status;
+    }
+    if (!Object.keys(patch.stress_meter ?? {}).length) {
+      delete patch.stress_meter;
+    }
+
+    return Object.keys(patch).length ? patch : undefined;
+  }
 }
 
 /**
@@ -194,4 +264,42 @@ const resolveMode = (stress: number): 'NORMAL' | 'ELEVATED' | 'BROKEN' => {
   if (stress >= 99) return 'BROKEN';
   if (stress >= 70) return 'ELEVATED';
   return 'NORMAL';
+};
+
+/**
+ * 功能：根据出生日期计算当前年龄（按 UTC，自然年）
+ * Description: Calculate persona age from DOB and current date (UTC based)
+ */
+const calculateAge = (dob: string, now: Date): number | undefined => {
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return undefined;
+  let age = now.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDiff = now.getUTCMonth() - birth.getUTCMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < birth.getUTCDate())) {
+    age -= 1;
+  }
+  return Math.max(age, 0);
+};
+
+/**
+ * 功能：根据压力变化更新 active_triggers 列表
+ * Description: Maintain stress triggers list with recent user inputs when stress increases
+ */
+const computeActiveTriggers = (
+  existing: string[] | undefined,
+  stressChange: number,
+  latestUserMessage: ChatMessage
+): string[] | undefined => {
+  const base = Array.isArray(existing) ? existing.filter(Boolean).slice(-4) : [];
+  if (stressChange > 0) {
+    const snippet = latestUserMessage.content?.trim().replace(/\s+/g, ' ').slice(0, 48) ?? '';
+    const label = snippet ? `User: ${snippet}` : 'User input spike';
+    const withoutDup = base.filter((item) => item !== label);
+    const merged = [...withoutDup, label];
+    return merged.slice(-5);
+  }
+  if (stressChange < 0 && base.length) {
+    return base.slice(1);
+  }
+  return base.length ? base : undefined;
 };

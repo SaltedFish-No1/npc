@@ -57,6 +57,8 @@ sequenceDiagram
     Feature->>Feature: 渲染聊天界面
 ```
 
+`POST /api/characters/:id/activate` 现会携带 `personaId` 与 `personaRuntime`，前端 `activateCharacterSession` 在解析后会写入 `SessionData`，供 Debug Panel 与后续回合直接消费。同理，聊天接口的最终 payload 也会返回最新运行态，确保 UI 不需要额外轮询即可观察 DigitalPersona 的实时波动。
+
 ## ChatFeature：核心界面组件
 
 `ChatFeature` 是聊天页面的骨架，负责组织所有子组件与数据流：
@@ -69,7 +71,7 @@ flowchart LR
     A --> E[ChatInput]
     A --> F[DebugPanel]
     A --> G[SettingsModal]
-    B --> H[头像与状态]
+    B --> H[头像与状态（固定高度）]
     B --> I[API Key 设置]
     C --> J[标题与语言切换]
     C --> K[角色选择]
@@ -89,8 +91,12 @@ flowchart LR
 - **数据加载**：通过 `useChatController` 拉取会话和处理数据流
 - **历史翻页**：ChatMessages 顶部“Load older messages”按钮会携带 `nextCursor` 调用 `/api/npc/sessions/:id/messages`
 - **调试浮层**：浮动 Debug 按钮与面板共用同一拖拽锚点，拖动其一即可整体移动并记忆位置
+- **Persona 调试**：Debug Panel 直接渲染 `session.personaRuntime`（压力计、场景目标、关系矩阵），便于观察 DigitalPersona 运行态
+- **Persona 可视化**：ChatSidebar 订阅 `session.personaHighlights`，以 Stat 组件展示 0-100 指标（压力、关系热度），并用手风琴折叠非百分比信息（场景目标、时间锚点、触发器）。头像/标题区域固定在顶部，下面的运行态面板与调试信息在独立滚动容器中展示，避免头像区域随内容滚动而跳动。
+- **Roster 归一化**：`useCharacterRoster` 内部统一使用 `normalizeLanguageCode` 访问 `/api/characters`，即使 UI 层传入 `zh-CN`、`zh_TW` 这类值也会落到基础语言查询，避免切换语言后 roster 缺失（例如 Severus Snape）并保持 Query 缓存键稳定。
+- **Display 文案托管**：角色 YAML 中的 `display.title/subtitle/chatTitle/chatSubline/statusLine` 会在 `/api/characters` 里按语言解析出来，`ChatFeature` 将这些字段合并到前端预设，动态更新页面 Title、ChatHeader 与 Sidebar 状态行，无需重新构建 SPA。
 - **国际化**：根据当前语言更新界面文案和标题
-- **Fallback 逻辑**：处理角色爆发状态和头像缺失的情况
+- **Fallback 逻辑**：处理角色爆发状态和头像缺失，并在检测到后端返回的“文本降级”回合时自动隐藏思考与 Debug Ribbon，避免再次向用户展示内部错误提示
 - **错误处理**：处理鉴权和会话加载失败的情况
 
 ## 核心业务钩子
@@ -137,7 +143,10 @@ flowchart LR
     E --> M[图片生成]
     G --> N[stress/trust 数值]
     G --> O[模式切换]
+    G --> P[personaRuntime + personaHighlights]
 ```
+
+自 2025-11 起，Hook 会同步返回 `session.personaHighlights`（后端根据 `runtime_state` 预处理的百分比指标与叙述型字段），Sidebar 可以直接消费该结构渲染 Stat/手风琴，而 Debug Panel 仍然展示完整的 `personaRuntime` JSON 供深入排查。
 
 #### 消息发送流程
 
@@ -153,18 +162,15 @@ sequenceDiagram
     Input->>Controller: 调用 sendMessage
     Controller->>Controller: 校验输入和状态
     Controller->>Controller: 构建提示词与上下文
-    Controller->>Service: 调用 streamChatCompletion
-    loop 流式返回
-        Service->>Controller: 返回 chunk
-        Controller->>Controller: 累积 liveContent
-        Controller->>User: 更新界面
-    end
-    Service->>Controller: 返回最终结果
+    Controller->>Service: 调用 completeChatTurn（非流式）
+    Service->>Controller: 返回完整回合 payload
     Controller->>Controller: 处理图片生成
     Controller->>Query: 更新会话缓存
     Controller->>Query: 持久化到 localStorage
     Controller->>User: 显示最终消息
 ```
+
+> 说明：SSE `/api/npc/chat/stream` 仍可用，但当前前端默认走一次性 `/api/npc/chat`，待流式稳定后再切回。
 
 ## 状态管理与持久化
 
@@ -206,19 +212,24 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A[前端] --> B[POST /api/npc/chat/stream]
+    A[前端] --> Z[POST /api/characters/:id/activate]
+    A[前端] --> B[POST /api/npc/chat]
+    A --> B2[POST /api/npc/chat/stream (可选)]
     A --> C[POST /api/npc/images]
     A --> D[GET /api/npc/sessions/:id]
     A --> E[GET /api/npc/sessions/:id/messages?limit&cursor]
     A --> F[GET /api/npc/memory-stream]
-    B --> G[流式聊天]
+    B --> G[非流式聊天]
+    B2 --> G2[流式聊天]
     C --> H[图片生成]
     D --> I[会话详情]
     E --> J[会话消息]
     F --> K[记忆流]
-    G --> L[返回 chunk]
-    G --> M[返回最终结果]
+    G --> L[返回聚合结果]
+    G2 --> L2[返回 chunk]
+    G2 --> M2[返回最终结果]
     H --> N[返回图片 URL]
+    Z --> O[初始化会话+personaRuntime]
 ```
 
 ### 与后端的交互流程
@@ -229,16 +240,11 @@ sequenceDiagram
     participant Backend as 后端
     participant LLM as LLM 服务
 
-    Frontend->>Backend: 发送聊天请求
+    Frontend->>Backend: 发送聊天请求（默认非流式）
     Backend->>Backend: 鉴权与验证
     Backend->>Backend: 构建 Prompt
     Backend->>LLM: 调用 LLM 服务
-    LLM->>Backend: 流式返回结果
-    Backend->>Frontend: SSE 发送 chunk
-    loop 流式处理
-        Frontend->>Frontend: 累积并显示
-    end
-    LLM->>Backend: 返回最终结果
+    LLM->>Backend: 返回完整响应
     Backend->>Backend: 保存会话与记忆
     Backend->>Frontend: 返回最终结果
 ```
@@ -255,7 +261,7 @@ sequenceDiagram
 flowchart LR
     A[CharacterProfile] --> B[角色档案]
     A --> C[形象风格]
-    A --> D[状态文案]
+    A --> D[状态文案 + 输入占位]
     A --> E[头像提示词]
     A --> F[默认状态]
     A --> G[默认问候语]
@@ -267,6 +273,10 @@ flowchart LR
 - `config/characterProfile.ts` 定义角色的各种配置
 - 国际化标签和标题通过 `getActiveNpcLocalization` 按语言选择
 - 用于 `ChatFeature` 的标题和副标题展示
+- Web 端默认会调用 `/api/characters?languageCode=<当前语言>`，因此新增角色只需在后端 YAML 中声明 `languages`（可写 `zh`/`zh-CN` 等，也允许写成 `en (Fluent)` 这类带注释的字符串，服务会自动截取语言码），并在 `display` 节点填充 `title/chatTitle/chatSubline/inputPlaceholder`，即可自动出现在下拉列表中；若语言不匹配会被过滤。
+- 缺省情况下 UI 会使用 YAML 返回的 `display` 覆盖 codename、Tagline 和输入占位符，同时基于角色名称生成占位头像，确保即便没有手工上传头像也能区分不同 NPC。
+- `defaultState` 的 `stress` 需保持 0~100，`trust` 可以写成 -100~100 表示反感程度，`mode` 可使用自定义标签（例如 `GUARDED`、`MANIPULATIVE`）；这些值会在激活后透传到会话，前端再依据压力阈值渲染 Broken/Normal 效果。
+- 新增/修改 YAML 后请重启后端（或让部署重新加载），否则 roster API 仍会返回旧缓存，前端也只能看到既有角色。
 
 ## 开发者工作流建议
 

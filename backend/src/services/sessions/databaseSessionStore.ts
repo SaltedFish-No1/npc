@@ -2,10 +2,11 @@
  * 文件：backend/src/services/sessions/databaseSessionStore.ts
  * 功能描述：基于数据库的会话存储（替代内存），完整持久化会话元数据与消息历史 | Description: Database-backed session store persisting session metadata and message history
  */
-import { SessionData, ChatMessage } from '../../schemas/chat.js';
+import { SessionData, ChatMessage, CharacterState } from '../../schemas/chat.js';
 import { nanoid } from 'nanoid';
 import type { SessionStore } from './sessionStore.js';
 import type { DB } from '../../db/dbClient.js';
+import type { DigitalPersonaRuntimeState } from '../../schemas/persona.js';
 
 export class DatabaseSessionStore implements SessionStore {
   constructor(private readonly db: DB) {}
@@ -47,11 +48,19 @@ export class DatabaseSessionStore implements SessionStore {
       createdAt: Number(m.createdat ?? m.createdAt ?? Date.now())
     }));
 
+    const rawState = parseJson(row.characterstate);
+    const { __personaRuntime, __personaId, ...restState } = rawState;
+    const characterState = restState as CharacterState;
+    const personaRuntime = (__personaRuntime as DigitalPersonaRuntimeState | undefined) ?? undefined;
+    const personaId = typeof __personaId === 'string' ? __personaId : undefined;
+
     return {
       sessionId: row.sessionid as unknown as string,
       characterId: row.characterid as unknown as string,
       languageCode: row.languagecode as unknown as string,
-      characterState: parseJson(row.characterstate),
+      characterState: characterState,
+      personaRuntime,
+      personaId,
       messages,
       version: row.version,
       createdAt: Number(row.createdat),
@@ -61,6 +70,16 @@ export class DatabaseSessionStore implements SessionStore {
 
   async set(session: SessionData): Promise<void> {
     const now = Date.now();
+    const statePayload: Record<string, unknown> = {
+      ...(session.characterState as unknown as Record<string, unknown>)
+    };
+    if (session.personaRuntime) {
+      statePayload.__personaRuntime = session.personaRuntime;
+    }
+    if (session.personaId) {
+      statePayload.__personaId = session.personaId;
+    }
+
     await this.db.query(
       `INSERT INTO sessions (sessionId, characterId, languageCode, characterState, version, createdAt, updatedAt)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -69,7 +88,7 @@ export class DatabaseSessionStore implements SessionStore {
         session.sessionId,
         session.characterId,
         session.languageCode,
-        JSON.stringify(session.characterState),
+        JSON.stringify(statePayload),
         session.version ?? 1,
         session.createdAt ?? now,
         now
@@ -108,7 +127,7 @@ export class DatabaseSessionStore implements SessionStore {
   }
 }
 
-const parseJson = (val: unknown) => {
+const parseJson = (val: unknown): Record<string, any> => {
   if (typeof val === 'string') {
     try {
       return JSON.parse(val);
@@ -116,7 +135,10 @@ const parseJson = (val: unknown) => {
       return {};
     }
   }
-  return (val as Record<string, unknown>) ?? {};
+  if (val && typeof val === 'object') {
+    return { ...(val as Record<string, unknown>) };
+  }
+  return {};
 };
 
 const serializeAttributes = (m: ChatMessage) => ({

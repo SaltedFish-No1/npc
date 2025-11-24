@@ -19,6 +19,7 @@ import {
   ChatMessage
 } from '@/schemas/chat';
 import { unifiedCharacterModelSchema } from '@/schemas/character';
+import { digitalPersonaRuntimeStateSchema, personaRuntimeHighlightsSchema } from '@/schemas/persona';
 
 const activationResponseSchema = z.object({
   sessionId: z.string(),
@@ -26,7 +27,24 @@ const activationResponseSchema = z.object({
   languageCode: z.string(),
   characterState: characterStateSchema,
   characterModel: unifiedCharacterModelSchema.optional(),
+  personaId: z.string().optional(),
+  personaRuntime: digitalPersonaRuntimeStateSchema.optional(),
+  personaHighlights: personaRuntimeHighlightsSchema.optional(),
   initialMessages: z.array(chatMessageSchema)
+});
+
+const characterDisplaySchema = z.object({
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  chatTitle: z.string().optional(),
+  chatSubline: z.string().optional(),
+  statusLine: z
+    .object({
+      normal: z.string().optional(),
+      broken: z.string().optional()
+    })
+    .optional(),
+  inputPlaceholder: z.string().optional()
 });
 
 const characterSummarySchema = z.object({
@@ -38,7 +56,8 @@ const characterSummarySchema = z.object({
   capabilities: z.object({
     text: z.boolean(),
     image: z.boolean()
-  })
+  }),
+  display: characterDisplaySchema.optional()
 });
 
 export type CharacterSummary = z.infer<typeof characterSummarySchema>;
@@ -137,7 +156,10 @@ export const activateCharacterSession = async (params: {
     messages: payload.initialMessages,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    version: 1
+    version: 1,
+    personaId: payload.personaId,
+    personaRuntime: payload.personaRuntime,
+    personaHighlights: payload.personaHighlights
   });
 };
 
@@ -254,6 +276,38 @@ export const streamChatCompletion = async (params: StreamChatParams): Promise<Ch
   }
 
   return finalPayload;
+};
+
+type CompleteChatParams = {
+  sessionId?: string;
+  characterId: string;
+  languageCode?: string;
+  message: string;
+  signal?: AbortSignal;
+};
+
+/**
+ * 功能：调用非流式聊天接口，返回完整回合响应
+ * Description: Call non-streaming chat endpoint and return the aggregated turn payload
+ */
+export const completeChatTurn = async (params: CompleteChatParams): Promise<ChatTurnResponse> => {
+  const payload = await performJsonRequest(
+    '/api/npc/chat',
+    chatTurnResponseSchema,
+    {
+    method: 'POST',
+    body: JSON.stringify({
+      sessionId: params.sessionId,
+      characterId: params.characterId,
+      languageCode: params.languageCode,
+      messages: [{ role: 'user', content: params.message }],
+      stream: false
+    }),
+    signal: params.signal
+    }
+  );
+
+  return payload as ChatTurnResponse;
 };
 
 /**

@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import { AppContext } from '../container.js';
 import { ChatMessage } from '../schemas/chat.js';
+import { buildPersonaRuntimeHighlights } from '../utils/personaHighlights.js';
 
 const messageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -62,12 +63,18 @@ export const registerChatRoutes = (app: FastifyInstance, ctx: AppContext) => {
       stream: false
     });
 
+    const personaHighlights = buildPersonaRuntimeHighlights(result.session.personaRuntime);
+
     return reply.send({
       sessionId: result.session.sessionId,
       characterState: result.session.characterState,
       assistantMessage: result.assistantMessage,
       imagePrompt: result.ai.image_prompt,
-      sessionVersion: result.session.version
+      sessionVersion: result.session.version,
+      // persona 信息帮助前端 Debug Panel 展示 DigitalPersona 状态
+      personaId: result.session.personaId,
+      personaRuntime: result.session.personaRuntime,
+      personaHighlights
     });
   });
 
@@ -107,12 +114,18 @@ export const registerChatRoutes = (app: FastifyInstance, ctx: AppContext) => {
       onChunk: emitChunk
     });
 
+    const personaHighlights = buildPersonaRuntimeHighlights(result.session.personaRuntime);
+
     const finalPayload = {
       sessionId: result.session.sessionId,
       characterState: result.session.characterState,
       assistantMessage: result.assistantMessage,
       imagePrompt: result.ai.image_prompt,
-      sessionVersion: result.session.version
+      sessionVersion: result.session.version,
+      // 与非流式接口保持一致，保证前端在 SSE 中也能收到 persona 运行态
+      personaId: result.session.personaId,
+      personaRuntime: result.session.personaRuntime,
+      personaHighlights
     };
 
     // 结束事件：发送最终聚合结果与结束信号

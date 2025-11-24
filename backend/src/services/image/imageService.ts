@@ -10,6 +10,17 @@ import { LLMClient } from '../../clients/llmClient.js';
 import { SessionData } from '../../schemas/chat.js';
 import { AvatarService, StoredAvatar } from '../avatars/avatarService.js';
 import { CharacterProfile, CharacterService } from '../characters/characterService.js';
+
+type ImageIntent = 'avatar' | 'scene';
+
+export class ImageService {
+  constructor(
+    private readonly llmClient: LLMClient,
+    private readonly sessionService: SessionService,
+    private readonly avatarService: AvatarService,
+    private readonly characterService: CharacterService
+  ) {}
+
   /**
    * 功能：处理图片生成，请求端只声明意图/情绪，由服务读取角色配置得出提示词；必要时复用会话 image_prompt
    * Description: Generate an image using backend-owned prompts resolved from character intent/mood, optionally falling back to the latest session image prompt
@@ -22,21 +33,6 @@ import { CharacterProfile, CharacterService } from '../characters/characterServi
    * @param {boolean} [params.updateAvatar] - 是否更新头像为生成图片 | Update avatar with generated image
    * @param {Record<string, unknown>} [params.metadata] - 附加追踪字段 | Telemetry metadata
    * @returns {Promise<{imageUrl:string;session:SessionData;avatar?:StoredAvatar}>} 图片地址与最新会话 | Generated image + updated session snapshot
-   */
-    private readonly avatarService: AvatarService,
-    private readonly characterService: CharacterService
-  ) {}
-
-  /**
-   * 功能：处理图片生成，支持优先使用会话中最新的 `image_prompt`
-   * Description: Generate image, optionally using latest `image_prompt` from session
-   * @param {Object} params - 入参 | Parameters
-   * @param {SessionData} params.session - 会话数据 | Session
-   * @param {string} [params.prompt] - 文本提示 | Prompt
-   * @param {'1:1'|'16:9'|'4:3'} [params.ratio] - 图片比例 | Ratio
-   * @param {boolean} [params.useImagePrompt] - 是否使用会话 image_prompt | Use session image_prompt
-   * @param {boolean} [params.updateAvatar] - 是否更新头像为生成图片 | Update avatar
-   * @returns {Promise<{imageUrl:string;session:SessionData}>} 图片地址与会话 | Image URL and session
    */
   async handleGeneration(params: {
     session: SessionData;

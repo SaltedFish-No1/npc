@@ -9,6 +9,12 @@ import { nanoid } from 'nanoid';
 
 import { CharacterProfile, CharacterService } from '../characters/characterService.js';
 import { CharacterState, ChatMessage, SessionData } from '../../schemas/chat.js';
+import {
+  digitalPersonaRuntimePatchSchema,
+  digitalPersonaRuntimeStateSchema,
+  type DigitalPersonaRuntimePatch,
+  type DigitalPersonaRuntimeState
+} from '../../schemas/persona.js';
 import { SessionStore } from './sessionStore.js';
 import type { SessionCache } from '../../cache/sessionCache.js';
 import { AvatarService } from '../avatars/avatarService.js';
@@ -96,6 +102,7 @@ export class SessionService {
    * @param {ChatMessage} payload.userMessage - 用户消息（role=user） | User message
    * @param {ChatMessage} payload.assistantMessage - 助手消息（role=assistant） | Assistant message
    * @param {CharacterState} payload.characterState - 更新后的角色状态 | Updated state
+  * @param {DigitalPersonaRuntimePatch} [payload.personaPatch] - DigitalPersona 运行态增量，若提供将与现有状态合并
    * @returns {Promise<SessionData>} 更新后的会话 | Updated session
    * @throws {Error} 当角色不匹配或会话不存在 | When roles mismatch or session missing
    */
@@ -103,6 +110,7 @@ export class SessionService {
     userMessage: ChatMessage;
     assistantMessage: ChatMessage;
     characterState: CharacterState;
+    personaPatch?: DigitalPersonaRuntimePatch;
   }): Promise<SessionData> {
     if (payload.userMessage.role !== 'user') {
       throw new Error('userMessage must have role="user"');
@@ -127,12 +135,22 @@ export class SessionService {
       createdAt: payload.assistantMessage.createdAt ?? timestamp
     };
 
+    let personaRuntime = existing.personaRuntime;
+    let personaId = existing.personaId;
+    if (payload.personaPatch) {
+      const merged = this.mergePersonaRuntimeState(existing, payload.personaPatch);
+      personaRuntime = merged.runtime;
+      personaId = merged.personaId;
+    }
+
     const updated: SessionData = {
       ...existing,
       updatedAt: Date.now(),
       version: existing.version + 1,
       characterState: payload.characterState,
-      messages: [...existing.messages, userMessage, assistantMessage]
+      messages: [...existing.messages, userMessage, assistantMessage],
+      personaRuntime,
+      personaId
     };
 
     // Resolve cache promise if it exists for update operations
@@ -331,8 +349,41 @@ export class SessionService {
         mode,
         avatarLabel
       },
-      messages: [initialAssistant]
+      messages: [initialAssistant],
+      personaId: profile.persona?.static_profile.meta.id,
+      personaRuntime: profile.persona ? cloneRuntimeState(profile.persona.runtime_state) : undefined
     };
+  }
+
+  /**
+   * 功能：更新会话绑定的 DigitalPersona 运行时状态
+   * Description: Update DigitalPersona runtime state for a session using a partial patch
+   * @param {string} sessionId - 会话 ID
+  * @param {DigitalPersonaRuntimePatch} patch - 运行时状态增量（同 REST PATCH 接口）
+   * @returns {Promise<SessionData>} 更新后的会话
+   */
+  async updatePersonaRuntimeState(sessionId: string, patch: DigitalPersonaRuntimePatch): Promise<SessionData> {
+    if (!patch || Object.keys(patch).length === 0) {
+      throw new Error('patch payload is required');
+    }
+    const existing = await this.store.get(sessionId);
+    if (!existing) {
+      throw new Error('Session not found');
+    }
+    const merged = this.mergePersonaRuntimeState(existing, patch);
+
+    const updated: SessionData = {
+      ...existing,
+      personaRuntime: merged.runtime,
+      personaId: merged.personaId,
+      updatedAt: Date.now(),
+      version: existing.version + 1
+    };
+
+    const cacheInstance = await this.cache;
+    await this.store.set(updated);
+    await cacheInstance?.set(updated);
+    return updated;
   }
 
   private async hydrateAvatarFromLibrary(
@@ -375,6 +426,33 @@ export class SessionService {
     await cacheInstance?.set(updated);
     return updated;
   }
+
+  /**
+   * 功能：合并给定 patch 与当前会话/角色的 DigitalPersona 运行态
+   * Description: Merge the provided runtime patch with the session's persona runtime, falling back to character defaults
+   */
+  private mergePersonaRuntimeState(
+    session: SessionData,
+    patch: DigitalPersonaRuntimePatch
+  ): { runtime: DigitalPersonaRuntimeState; personaId: string } {
+    if (!patch || Object.keys(patch).length === 0) {
+      throw new Error('personaPatch payload is required');
+    }
+    const normalizedPatch = digitalPersonaRuntimePatchSchema.parse(patch);
+    const profile = this.characterService.getCharacterOrThrow(session.characterId);
+    const personaId = session.personaId ?? profile.persona?.static_profile.meta.id;
+    if (!personaId || !profile.persona) {
+      throw new Error('Session does not track a DigitalPersona runtime state');
+    }
+    const baseRuntime = session.personaRuntime ?? profile.persona.runtime_state;
+    if (!baseRuntime) {
+      throw new Error('Base runtime state is missing for this persona');
+    }
+
+    const merged = mergeRuntimeState(baseRuntime, normalizedPatch);
+    const runtime = digitalPersonaRuntimeStateSchema.parse(merged);
+    return { runtime, personaId };
+  }
 }
 
 const parseCursor = (cursor: string): { createdAt: number; messageId: string } => {
@@ -414,13 +492,15 @@ const adaptMessageRow = (row: {
   createdAt?: number;
 }): ChatMessage => {
   const attrs = parseAttributesPayload(row.attributes);
+  const rawCreatedAt = row.createdat ?? row.createdAt;
+  const createdAt = typeof rawCreatedAt === 'number' ? rawCreatedAt : Number(rawCreatedAt ?? 0);
   return {
     role: row.role as 'system' | 'user' | 'assistant',
     content: row.content,
     thought: row.thought ?? undefined,
     ...attrs,
     messageId: row.messageid ?? row.messageId,
-    createdAt: row.createdat ?? row.createdAt
+    createdAt
   };
 };
 
@@ -447,5 +527,52 @@ const parseAttributesPayload = (val: string | null): StoredAttributes => {
     return output;
   } catch {
     return {};
+  }
+};
+
+/**
+ * 功能：深拷贝 DigitalPersona 运行态，避免跨会话引用共享
+ * Description: Deep-clone runtime state to avoid sharing references between sessions
+ */
+const cloneRuntimeState = (state: DigitalPersonaRuntimeState): DigitalPersonaRuntimeState => {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(state);
+  }
+  return JSON.parse(JSON.stringify(state)) as DigitalPersonaRuntimeState;
+};
+
+/**
+ * 功能：将 patch 递归合并到基准运行态
+ * Description: Recursively merge a runtime patch into the base state
+ */
+const mergeRuntimeState = (
+  base: DigitalPersonaRuntimeState,
+  patch: DigitalPersonaRuntimePatch
+): DigitalPersonaRuntimeState => {
+  const next = cloneRuntimeState(base);
+  applyRuntimePatch(next as Record<string, unknown>, patch as Record<string, unknown>);
+  return next;
+};
+
+/**
+ * 功能：深度合并工具（数组覆盖、对象递归）
+ * Description: Deep merge helper honoring arrays as replace semantics
+ */
+const applyRuntimePatch = (target: Record<string, unknown>, patch: Record<string, unknown>) => {
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      target[key] = value;
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      const current = target[key];
+      if (!current || typeof current !== 'object' || Array.isArray(current)) {
+        target[key] = {};
+      }
+      applyRuntimePatch(target[key] as Record<string, unknown>, value as Record<string, unknown>);
+      continue;
+    }
+    target[key] = value;
   }
 };

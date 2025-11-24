@@ -53,9 +53,17 @@ backend/
 - `POST /api/npc/images` – generate an image by declaring intent/mood (backend owns prompts; can update avatar)
 - `GET /api/npc/sessions/:id` – read a single session (metadata + recent messages)
 - `GET /api/npc/sessions/:id/messages?limit&cursor` – cursor-based message history (`items`, `nextCursor`)
+- `GET /api/npc/sessions/:id/persona` – fetch DigitalPersona v2 runtime state (if the role defines one)
+- `PATCH /api/npc/sessions/:id/persona` – apply a `DigitalPersonaRuntimePatch` to the current session
 - `GET /api/npc/memory-stream?characterId&sessionId&limit&offset` – read long‑term memories
 
 All endpoints (except `/health`) require the `x-api-key: $NPC_GATEWAY_KEY` header (falls back to `LLM_API_AUTH_TOKEN`).
+
+### AI 响应契约与降级
+
+- LLMClient 调用所有文本模型时会附带 `response_format: { type: 'json_schema' }`，强制模型输出 `thought/stress_change/trust_change/response/image_prompt` 五个字段，避免中文自然语言导致 JSON.parse 失败。
+- 解析阶段若仍收到非 JSON 结构，服务会记录结构化日志（含前 120 字节片段），并降级为“仅返回最终文案，隐藏思考/数值”的安全响应，防止聊天接口 500。
+- 流式与非流式走同一解析与容错逻辑，前端可依赖数值字段是否存在来决定是否展示 Debug Ribbon。
 
 ### Image generation payload
 
@@ -74,10 +82,30 @@ All endpoints (except `/health`) require the `x-api-key: $NPC_GATEWAY_KEY` heade
 
 Prompts are sourced from `config/characters/*.yaml > imagePrompts`, ensuring the backend keeps full control over model inputs.
 
+## DigitalPersona v2 角色模型
+
+- 角色 YAML 可在 `persona` 字段挂载完整的 DigitalPersona v2 schema（示例：`config/characters/mob.yaml`）。
+- `meta.id` 现已接受 UUID 或语义化 slug（如 `severus_snape_v2`），避免非 UUID ID 触发 Zod 校验失败导致整份角色被丢弃。
+- Schema/Zod 定义位于 `src/schemas/persona.ts`，会在 `CharacterService` 加载阶段自动校验；`SessionService` 将 `personaRuntime` 写入会话并在 `appendTurn` 时生成默认 patch。
+- PromptEngine/ChatService 自动读取 `session.personaRuntime`，模板可根据 `stress_meter`、`scene_context` 等字段动态调整语气。
+- 需要手动操控运行态时，可调用 `GET`/`PATCH /api/npc/sessions/:id/persona`，请求体格式详见 `docs/api/index.md` 与 `docs/digital-persona.md`。
+
+## Display 文案（Title/Subtitle/Status）
+- 角色 YAML 可在 `display` 节点中声明 `title`、`subtitle`、`chatTitle`、`chatSubline`、`statusLine.normal/broken`，每个字段都支持 `{ langCode: copy }` 形式的多语言映射。
+- `inputPlaceholder` 同样支持多语言，可覆盖前端 ChatInput 的 placeholder，确保文案与角色语气一致。
+- `CharacterService.listCharacters(languageCode)` 会在 `/api/characters` 响应中注入这些字符串，语言优先级遵循 `xx-YY -> xx -> en -> firstEntry`。
+- 前端在拉取 roster 时会将返回值覆盖至 UI（页面 Title、ChatHeader、副标题、Sidebar 状态行），因此再新增角色时只需要更新 YAML，无需重新编译 React。
+
 ## Testing & Quality
 - `pnpm typecheck` – strict TypeScript validation
 - Built-in zod schemas guard configs, requests, and AI payloads
 - Rate limiting, CORS, and SSE are provided via Fastify plugins
+
+## Documentation Site
+
+- 源码位于 `docs/`，基于 VitePress。
+- `pnpm docs:dev`：本地预览文档站。
+- `pnpm docs:build`：输出静态站点到 `docs/.vitepress/dist`。
 
 ## Persistence & RAG
 - Tables: `sessions`, `session_messages`, `character_memory_stream`

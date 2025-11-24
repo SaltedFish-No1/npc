@@ -24,7 +24,33 @@ const resources = {
           sectionTitle: 'Character State',
           engineLabel: 'ENGINE',
           pendingLabel: 'PENDING',
-          proxyTag: 'proxy'
+          proxyTag: 'proxy',
+          runtimeTitle: 'Runtime Telemetry',
+          runtimeSubtitle: 'Live stress + scene intel',
+          runtimeStats: {
+            stress: 'Stress Meter',
+            rapport: 'Rapport · {{target}}',
+            targets: {
+              user: 'You',
+              default: 'NPC'
+            }
+          },
+          runtimeInfo: {
+            goal: 'Current Goal',
+            tactic: 'Current Tactic',
+            occupation: 'On Duty',
+            health: 'Vitals',
+            appearance: 'Appearance',
+            triggers: 'Active Triggers',
+            timeline: 'Timeline Anchor',
+            age: 'Age',
+            ageValue: '{{value}} yrs',
+            knowledge: 'Notes · {{target}}'
+          },
+          runtimeAccordion: {
+            more: 'Show more runtime context'
+          },
+          stateSummary: 'View raw CharacterState JSON'
         },
         messages: {
           streaming: 'Streaming...',
@@ -44,6 +70,7 @@ const resources = {
           logs: 'System Logs',
           noEvents: 'No system events…',
           currentState: 'Current State',
+          personaRuntime: 'Persona Runtime',
           pendingImage: 'Pending Image Prompt'
         }
       },
@@ -86,7 +113,33 @@ const resources = {
           sectionTitle: '角色状态',
           engineLabel: '引擎',
           pendingLabel: '未配置',
-          proxyTag: '代理'
+          proxyTag: '代理',
+          runtimeTitle: '运行态监控',
+          runtimeSubtitle: '实时压力与场景脉搏',
+          runtimeStats: {
+            stress: '压力刻度',
+            rapport: '关系热度 · {{target}}',
+            targets: {
+              user: '你',
+              default: 'NPC'
+            }
+          },
+          runtimeInfo: {
+            goal: '当前目标',
+            tactic: '当前策略',
+            occupation: '当下身份',
+            health: '状态',
+            appearance: '外观变化',
+            triggers: '激活触发',
+            timeline: '时间锚点',
+            age: '年龄',
+            ageValue: '{{value}} 岁',
+            knowledge: '备注 · {{target}}'
+          },
+          runtimeAccordion: {
+            more: '展开更多运行态'
+          },
+          stateSummary: '查看原始 CharacterState JSON'
         },
         messages: {
           streaming: '思考中…',
@@ -106,6 +159,7 @@ const resources = {
           logs: '系统日志',
           noEvents: '暂无事件',
           currentState: '当前状态',
+          personaRuntime: 'Persona 运行态',
           pendingImage: '待生成的图像提示'
         }
       },

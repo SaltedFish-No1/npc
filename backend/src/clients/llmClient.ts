@@ -10,6 +10,44 @@ import { TextDecoder } from 'node:util';
 import { AppConfig } from '../config/env.js';
 import { AIResponse, aiResponseSchema } from '../schemas/chat.js';
 import { normalizeJsonNumbers, trimCodeFence } from '../utils/json.js';
+import { logger } from '../logger.js';
+
+const AI_RESPONSE_JSON_SCHEMA = {
+  name: 'npc_ai_response',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['thought', 'stress_change', 'trust_change', 'response'],
+    properties: {
+      thought: {
+        type: 'string',
+        description: 'Assistant reflective narration prior to final reply'
+      },
+      stress_change: {
+        type: 'number',
+        description: 'Delta applied to NPC stress meter (-100 to 100)',
+        minimum: -100,
+        maximum: 100
+      },
+      trust_change: {
+        type: 'number',
+        description: 'Delta applied to NPC trust meter (-100 to 100)',
+        minimum: -100,
+        maximum: 100
+      },
+      response: {
+        type: 'string',
+        description: 'Final assistant reply visible to the user'
+      },
+      image_prompt: {
+        type: ['string', 'null'],
+        description: 'Optional DALLE prompt when an illustration is required'
+      }
+    }
+  }
+} as const;
+
+type ParsedAIResponse = AIResponse & { __fallback?: boolean };
 
 export type ChatCompletionRequest = {
   systemPrompt: string;
@@ -54,6 +92,7 @@ export class LLMClient {
         model: this.config.TEXT_MODEL_NAME,
         temperature: payload.temperature ?? 0.8,
         stream: false,
+        response_format: this.buildJsonResponseFormat(),
         messages: [{ role: 'system', content: payload.systemPrompt }, ...payload.messages]
       })
     });
@@ -91,6 +130,7 @@ export class LLMClient {
         model: this.config.TEXT_MODEL_NAME,
         temperature: payload.temperature ?? 0.8,
         stream: true,
+        response_format: this.buildJsonResponseFormat(),
         messages: [{ role: 'system', content: payload.systemPrompt }, ...payload.messages]
       })
     });
@@ -255,20 +295,49 @@ export class LLMClient {
 
   /**
    * 非常规处理：AI 响应解析与清洗
-   * 中文：去除三引号代码块、规范化正号数字，Zod 校验失败直接报错
-   * English: Trim code fences, normalize plus-sign numbers, validate with Zod or throw
+   * 中文：去除三引号代码块、规范化正号数字，JSON 解析失败时降级为纯文本响应
+   * English: Trim code fences, normalize plus-sign numbers, degrade to raw text when JSON parsing fails
    */
-  private parseAiResponse(rawContent?: string): AIResponse {
-    const cleaned = trimCodeFence(rawContent ?? '');
+  private parseAiResponse(rawContent?: string): ParsedAIResponse {
+    const cleaned = trimCodeFence(rawContent ?? '').trim();
     if (!cleaned) {
       throw new Error('AI response missing content');
     }
     const normalized = normalizeJsonNumbers(cleaned);
-    const parsed = aiResponseSchema.safeParse(JSON.parse(normalized || '{}'));
-    if (!parsed.success) {
-      throw new Error('AI response validation failed');
+    try {
+      const parsed = aiResponseSchema.safeParse(JSON.parse(normalized || '{}'));
+      if (!parsed.success) {
+        throw parsed.error;
+      }
+      return parsed.data;
+    } catch (error) {
+      logger.warn(
+        {
+          err: error instanceof Error ? error.message : String(error),
+          sample: cleaned.slice(0, 120)
+        },
+        'AI response is not valid JSON, falling back to raw text payload'
+      );
+      return {
+        thought: '',
+        stress_change: 0,
+        trust_change: 0,
+        response: cleaned,
+        image_prompt: undefined,
+        __fallback: true
+      };
     }
-    return parsed.data;
+  }
+
+  /**
+   * 功能：构建 JSON Schema 响应格式约束，强制上游输出结构化字段
+   * Description: Build JSON schema response format to force upstream payload compliance
+   */
+  private buildJsonResponseFormat() {
+    return {
+      type: 'json_schema' as const,
+      json_schema: AI_RESPONSE_JSON_SCHEMA
+    };
   }
 
   /**

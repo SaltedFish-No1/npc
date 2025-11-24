@@ -5,9 +5,12 @@ A React + Vite playground for building richly-configured NPC chat experiences on
 ## Feature highlights
 
 - 🎭 **Unified persona model** – Each NPC ships with a `UnifiedCharacterModel` template (see `web/src/schemas/character.ts`) that covers vitals, traits, skills, memories, and relationship graphs.
-- 🌐 **Dynamic i18n** – Interface copy is translated with i18next while persona-specific strings (codename, taglines, subtitles) are loaded from the active NPC preset so localization stays in sync with the character.
+- 🌐 **Dynamic i18n** – Interface copy is translated with i18next while persona-specific strings (codename, taglines, subtitles) are loaded from the active NPC preset so localization stays in sync with the character. Backend `GET /api/characters` 也会将 `languageCode=zh` 之类基础语言码映射到 `zh-CN/zh-TW`，确保切换语言后能拉到完整的角色 roster。
+- 🧾 **Config-friendly roster loading** – DigitalPersona 校验现在允许 `persona.meta.id` 使用 UUID 或语义化 slug，不再因为自定义 ID（如 `severus_snape`）而整份角色被过滤掉，同时也会保留语言过滤能力，确保语言切换后角色完整出现。
+- 📰 **Backend-driven hero copy** – 角色 YAML 新增 `display.*` 区块（title/subtitle/chatTitle/chatSubline/statusLine/inputPlaceholder），`GET /api/characters` 会按当前语言返回这些文案，前端再也不需要硬编码标题、副标题、输入占位与状态行。
 - ⚙️ **Controller-driven chat** – `useChatController` coordinates auth, session persistence, streaming responses, and avatar generation, keeping UI components declarative.
 - 📦 **Session snapshots** – `sessionService` mirrors the backend session state locally so React Query can stay optimistic while the Fastify store remains the source of truth.
+- 🧠 **DigitalPersona telemetry** – Activation 与聊天接口现在返回 `personaRuntime` + `personaHighlights`，侧边栏会用 Stat 条展示 0-100 的关键指标，并以可折叠面板呈现场景目标/触发器/时间线，Debug Panel 仍可查看完整 JSON 以便校准心智曲线。
 - 🚀 **NPC API gateway** – All chat/image requests flow through the Fastify backend (`/api/npc/*`). Vite now proxies `/npc-api/*` during local dev so you can run the SPA and backend together without CORS pain.
 
 ## Tech stack

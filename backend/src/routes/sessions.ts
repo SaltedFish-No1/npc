@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { AppContext } from '../container.js';
+import { digitalPersonaRuntimePatchSchema } from '../schemas/persona.js';
 
 export const registerSessionRoutes = (app: FastifyInstance, ctx: AppContext) => {
   app.get('/api/npc/sessions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -20,6 +21,8 @@ export const registerSessionRoutes = (app: FastifyInstance, ctx: AppContext) => 
       characterId: session.characterId,
       languageCode: session.languageCode,
       characterState: session.characterState,
+      personaId: session.personaId,
+      personaRuntime: session.personaRuntime,
       version: session.version,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
@@ -41,5 +44,31 @@ export const registerSessionRoutes = (app: FastifyInstance, ctx: AppContext) => 
       cursor: cursor || undefined
     });
     return reply.send(result);
+  });
+
+  app.get('/api/npc/sessions/:id/persona', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const session = await ctx.services.sessions.getSessionById(params.id);
+    if (!session || !session.personaId) {
+      return reply.code(404).send({ error: 'PERSONA_NOT_FOUND' });
+    }
+    return reply.send({
+      sessionId: session.sessionId,
+      personaId: session.personaId,
+      personaRuntime: session.personaRuntime
+    });
+  });
+
+  app.patch('/api/npc/sessions/:id/persona', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const body = digitalPersonaRuntimePatchSchema.parse(request.body ?? {});
+    const updated = await ctx.services.sessions.updatePersonaRuntimeState(params.id, body);
+    return reply.send({
+      sessionId: updated.sessionId,
+      personaId: updated.personaId,
+      personaRuntime: updated.personaRuntime,
+      version: updated.version,
+      updatedAt: updated.updatedAt
+    });
   });
 };

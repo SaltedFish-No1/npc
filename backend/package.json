@@ -9,7 +9,10 @@
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
@@ -27,15 +30,17 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/pg": "^8.11.10",
     "@types/node": "^22.9.4",
+    "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.3",
+    "markdown-it-mermaid": "^0.2.5",
     "pino-pretty": "^11.2.2",
     "prisma": "^7.0.0",
     "supertest": "^7.0.0",
     "tslib": "^2.8.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
+    "vitepress": "^1.6.4",
     "vitest": "^2.1.1"
   }
 }
