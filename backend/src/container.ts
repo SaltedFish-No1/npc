@@ -19,6 +19,7 @@ import { createDBClient } from './db/dbClient.js';
 import { DatabaseSessionStore } from './services/sessions/databaseSessionStore.js';
 import { createSessionCache } from './cache/sessionCache.js';
 import { MemoryService } from './services/memory/memoryService.js';
+import { AvatarService } from './services/avatars/avatarService.js';
 
 export type AppContext = {
   config: AppConfig;
@@ -29,6 +30,7 @@ export type AppContext = {
     chat: ChatService;
     image: ImageService;
     llm: LLMClient;
+    avatars: AvatarService;
   };
 };
 
@@ -54,13 +56,20 @@ export const buildAppContext = (config: AppConfig): AppContext => {
     // 内存存储（2h TTL）
     sessionStore = new InMemorySessionStore(1000 * 60 * 60 * 2);
   }
-  const sessionService = new SessionService(sessionStore as any, characterService, syncCreateCache(config));
+  const dbPromise = syncGetDB();
+  const avatarService = new AvatarService(dbPromise);
+  const sessionService = new SessionService(
+    sessionStore as any,
+    characterService,
+    syncCreateCache(config),
+    avatarService
+  );
   const promptEngine = new PromptEngine(path.resolve(baseDir, 'templates/prompts'));
   const llmClient = new LLMClient(config);
   // 暂时禁用记忆服务以避免嵌入模型错误
   // const memoryService = new MemoryService(config, syncGetDB(), llmClient);
-  const chatService = new ChatService(promptEngine, sessionService, characterService, llmClient);
-  const imageService = new ImageService(llmClient, sessionService);
+  const chatService = new ChatService(promptEngine, sessionService, characterService, llmClient, avatarService);
+  const imageService = new ImageService(llmClient, sessionService, avatarService);
 
   return {
     config,
@@ -70,7 +79,8 @@ export const buildAppContext = (config: AppConfig): AppContext => {
       prompt: promptEngine,
       chat: chatService,
       image: imageService,
-      llm: llmClient
+      llm: llmClient,
+      avatars: avatarService
     }
   };
 };

@@ -19,6 +19,7 @@ import { registerImageRoutes } from './routes/images.js';
 import { registerHealthRoute } from './routes/health.js';
 import { registerSessionRoutes } from './routes/sessions.js';
 import { registerMemoryRoutes } from './routes/memory.js';
+import { registerAvatarRoutes } from './routes/avatars.js';
 
 const fastifyLoggerOptions =
   process.env.NODE_ENV === 'development'
@@ -68,6 +69,7 @@ export const createServer = async (config: AppConfig): Promise<FastifyInstance> 
   registerImageRoutes(app, ctx);
   registerSessionRoutes(app, ctx);
   registerMemoryRoutes(app);
+  registerAvatarRoutes(app, ctx);
 
   return app;
 };

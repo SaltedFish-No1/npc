@@ -13,7 +13,9 @@ export const characterStateSchema = z.object({
   trust: z.number().min(0).max(100),
   mode: z.enum(['NORMAL', 'ELEVATED', 'BROKEN']).default('NORMAL'),
   name: z.string().optional(),
-  avatarUrl: z.string().url().optional()
+  avatarUrl: z.string().url().optional(),
+  avatarId: z.string().optional(),
+  avatarLabel: z.string().optional()
 });
 
 export type CharacterState = z.infer<typeof characterStateSchema>;

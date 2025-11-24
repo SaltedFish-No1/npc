@@ -261,6 +261,8 @@ export const generateImage = async (params: {
   ratio?: '1:1' | '16:9' | '4:3';
   useImagePrompt?: boolean;
   updateAvatar?: boolean;
+  statusLabel?: string;
+  metadata?: Record<string, unknown>;
   signal?: AbortSignal;
 }) => {
   return performJsonRequest('/api/npc/images', imageGenerationResponseSchema, {
@@ -271,7 +273,9 @@ export const generateImage = async (params: {
       prompt: params.prompt,
       ratio: params.ratio,
       useImagePrompt: params.useImagePrompt,
-      updateAvatar: params.updateAvatar
+      updateAvatar: params.updateAvatar,
+      statusLabel: params.statusLabel,
+      metadata: params.metadata
     }),
     signal: params?.signal
   });

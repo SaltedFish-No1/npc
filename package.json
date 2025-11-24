@@ -16,6 +16,7 @@
     "typecheck:backend": "pnpm --filter headless-npc-backend typecheck"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "node-gyp": "^12.1.0"
   }
 }

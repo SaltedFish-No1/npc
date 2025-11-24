@@ -11,6 +11,7 @@ import { LLMClient } from '../../clients/llmClient.js';
 import { CharacterService } from '../characters/characterService.js';
 import { AIResponse, ChatMessage, SessionData } from '../../schemas/chat.js';
 import { MemoryService } from '../memory/memoryService.js';
+import { AvatarService } from '../avatars/avatarService.js';
 
 /**
  * 历史窗口大小：仅保留最近 10 条用户/助手消息用于上下文
@@ -28,6 +29,7 @@ export class ChatService {
     private readonly sessionService: SessionService,
     private readonly characterService: CharacterService,
     private readonly llmClient: LLMClient,
+    private readonly avatarService: AvatarService,
     private readonly memoryService?: MemoryService
   ) {}
 
@@ -101,12 +103,45 @@ export class ChatService {
       imagePrompt: aiResponse.image_prompt
     };
 
-    const updatedState = {
+    let updatedState = {
       ...params.session.characterState,
       stress: clamp(params.session.characterState.stress + aiResponse.stress_change),
       trust: clamp(params.session.characterState.trust + aiResponse.trust_change),
       mode: resolveMode(params.session.characterState.stress + aiResponse.stress_change)
     };
+
+    // 自动切换头像：尝试查找对应当前模式的最新头像
+    // Automatic avatar switching: try to find latest avatar for current mode
+    const oldMode = params.session.characterState.mode;
+    const newMode = updatedState.mode;
+    
+    if (oldMode !== newMode) {
+      const targetLabel = newMode.toLowerCase();
+      const existingAvatar = await this.avatarService.findLatestAvatarByLabel(
+        params.session.characterId,
+        targetLabel
+      );
+
+      if (existingAvatar) {
+        updatedState = {
+          ...updatedState,
+          avatarId: existingAvatar.id,
+          avatarLabel: existingAvatar.statusLabel,
+          avatarUrl: existingAvatar.imageUrl
+        };
+      } else {
+        // 如果没有找到新模式的头像，且当前头像属于旧模式，则重置（让前端使用默认占位符）
+        // If no avatar found for new mode, and current avatar belongs to old mode, reset (let frontend use fallback)
+        if (updatedState.avatarLabel === oldMode.toLowerCase()) {
+          updatedState = {
+            ...updatedState,
+            avatarId: undefined,
+            avatarLabel: undefined,
+            avatarUrl: undefined
+          };
+        }
+      }
+    }
 
     const updatedSession = await this.sessionService.appendTurn(params.session.sessionId, {
       userMessage: latestUserMessage,

@@ -15,7 +15,9 @@ export const characterStateSchema = z.object({
   trust: z.number().min(0).max(100).default(50),
   mode: z.enum(['NORMAL', 'ELEVATED', 'BROKEN', '???%']).default('NORMAL'),
   name: z.string().default(CHARACTER_PROFILE.defaultName),
-  avatarUrl: z.string().url().optional().or(z.literal(''))
+  avatarUrl: z.string().url().optional().or(z.literal('')),
+  avatarId: z.string().optional(),
+  avatarLabel: z.string().optional()
 });
 
 export type CharacterState = z.infer<typeof characterStateSchema>;
@@ -64,12 +66,23 @@ export const chatTurnResponseSchema = z.object({
 
 export type ChatTurnResponse = z.infer<typeof chatTurnResponseSchema>;
 
+const avatarSchema = z.object({
+  id: z.string(),
+  characterId: z.string().nullable().optional(),
+  statusLabel: z.string(),
+  imageUrl: z.string().url(),
+  metadata: z.record(z.any()).nullable().optional(),
+  createdAt: z.number()
+});
+
 /** 图片生成响应 | Image generation response */
 export const imageGenerationResponseSchema = z.object({
   sessionId: z.string(),
   imageUrl: z.string().url().optional().or(z.literal('')),
   characterState: optionalNormalizedCharacterStateSchema,
-  sessionVersion: z.number().optional()
+  sessionVersion: z.number().optional(),
+  avatar: avatarSchema.optional()
 });
 
 export type ImageGenerationResponse = z.infer<typeof imageGenerationResponseSchema>;
+export type CharacterAvatar = z.infer<typeof avatarSchema>;

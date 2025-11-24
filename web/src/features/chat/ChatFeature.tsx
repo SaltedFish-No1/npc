@@ -54,7 +54,7 @@ export default function ChatFeature() {
 
   const isBroken = state.mode === 'BROKEN' || state.mode === '???%' || state.stress >= 99;
   const avatar = useMemo(() => {
-    if (!state.avatarUrl || state.avatarUrl.includes('dicebear')) {
+    if (!state.avatarUrl) {
       return isBroken ? FALLBACK_AVATAR_BROKEN : FALLBACK_AVATAR_NORMAL;
     }
     return state.avatarUrl;

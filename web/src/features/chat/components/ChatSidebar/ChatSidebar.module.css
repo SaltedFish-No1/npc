@@ -112,6 +112,14 @@
   transform: translateY(-1px);
 }
 
+.ghostButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.4);
+  transform: none;
+}
+
 .badge {
   position: absolute;
   left: 16px;

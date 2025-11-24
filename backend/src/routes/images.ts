@@ -17,7 +17,9 @@ const imageBodySchema = z
     prompt: z.string().optional(),
     ratio: z.enum(['1:1', '16:9', '4:3']).optional(),
     useImagePrompt: z.boolean().optional(),
-    updateAvatar: z.boolean().optional()
+    updateAvatar: z.boolean().optional(),
+    statusLabel: z.string().optional(),
+    metadata: z.record(z.any()).optional()
   })
   .refine((data) => data.sessionId || data.characterId, {
     message: 'Either sessionId or characterId is required',
@@ -53,14 +55,17 @@ export const registerImageRoutes = (app: FastifyInstance, ctx: AppContext) => {
         prompt: body.prompt,
         ratio: body.ratio,
         useImagePrompt: body.useImagePrompt,
-        updateAvatar: body.updateAvatar
+        updateAvatar: body.updateAvatar,
+        statusLabel: body.statusLabel,
+        metadata: body.metadata
       });
 
       return reply.send({
         sessionId: result.session.sessionId,
         imageUrl: result.imageUrl,
         characterState: result.session.characterState,
-        sessionVersion: result.session.version
+        sessionVersion: result.session.version,
+        avatar: result.avatar
       });
     }
   );

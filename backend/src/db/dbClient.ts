@@ -95,4 +95,16 @@ const initSchema = async (db: DB, config: AppConfig) => {
   try {
     await db.exec(`CREATE INDEX IF NOT EXISTS idx_memory_embeddings_hnsw ON character_memory_embeddings USING hnsw (embedding)`);
   } catch {}
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS character_avatars (
+      id TEXT PRIMARY KEY,
+      characterId TEXT NULL,
+      statusLabel TEXT NOT NULL,
+      imageUrl TEXT NOT NULL,
+      metadata JSONB NULL,
+      createdAt BIGINT NOT NULL
+    );
+  `);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_character_avatars_characterId ON character_avatars(characterId)`);
 };

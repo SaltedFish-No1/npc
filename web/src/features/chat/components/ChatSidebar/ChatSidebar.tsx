@@ -35,6 +35,12 @@ export function ChatSidebar({
     return `${NPC_API_BASE_URL} · ${t('chat.sidebar.proxyTag')}`;
   })();
 
+  const badgeLabel = state.avatarLabel
+    ? state.avatarLabel
+    : isBroken
+      ? CHARACTER_PROFILE.statuses.broken
+      : CHARACTER_PROFILE.statuses.normal;
+
   return (
     <aside className={styles.sidebar}>
       <div className={styles.titleGroup}>
@@ -63,9 +69,7 @@ export function ChatSidebar({
           </button>
         </div>
         <div className={styles.badge}>
-          {isBroken
-            ? CHARACTER_PROFILE.statuses.badgeBroken
-            : CHARACTER_PROFILE.statuses.badgeNormal}
+          {badgeLabel}
         </div>
       </div>
 

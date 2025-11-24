@@ -11,6 +11,7 @@ import { CharacterProfile, CharacterService } from '../characters/characterServi
 import { CharacterState, ChatMessage, SessionData } from '../../schemas/chat.js';
 import { SessionStore } from './sessionStore.js';
 import type { SessionCache } from '../../cache/sessionCache.js';
+import { AvatarService } from '../avatars/avatarService.js';
 
 const DEFAULT_LANGUAGE = 'en';
 
@@ -22,7 +23,8 @@ export class SessionService {
   constructor(
     private readonly store: SessionStore,
     private readonly characterService: CharacterService,
-    private readonly cache?: SessionCache | null
+    private readonly cache?: SessionCache | null,
+    private readonly avatarService?: AvatarService
   ) {}
 
   /**
@@ -54,7 +56,7 @@ export class SessionService {
         } else {
           await this.store.touch(existing.sessionId);
           await cacheInstance?.touch(existing.sessionId);
-          return existing;
+          return this.hydrateAvatarFromLibrary(existing, cacheInstance);
         }
       }
     }
@@ -67,16 +69,21 @@ export class SessionService {
     const session = this.buildInitialSession(profile, requestedLanguage);
     await this.store.set(session);
     await cacheInstance?.set(session);
-    return session;
+    return this.hydrateAvatarFromLibrary(session, cacheInstance);
   }
 
   /**
    * 功能：只读获取会话（不触发创建），优先读取缓存 | Description: Read-only session fetch (no creation), prefers cache
    */
   async getSessionById(sessionId: string): Promise<SessionData | null> {
-    const cached = await this.cache?.get(sessionId);
-    if (cached) return cached;
-    return this.store.get(sessionId);
+    const cacheInstance = await this.cache;
+    const cached = await cacheInstance?.get(sessionId);
+    if (cached) {
+      return this.hydrateAvatarFromLibrary(cached, cacheInstance);
+    }
+    const stored = await this.store.get(sessionId);
+    if (!stored) return null;
+    return this.hydrateAvatarFromLibrary(stored, cacheInstance);
   }
 
   /**
@@ -128,7 +135,10 @@ export class SessionService {
    * @param {string} avatarUrl - 新头像地址 | New avatar URL
    * @returns {Promise<SessionData>} 更新后的会话 | Updated session
    */
-  async updateAvatar(sessionId: string, avatarUrl: string): Promise<SessionData> {
+  async updateAvatar(
+    sessionId: string,
+    avatar: { avatarId?: string; imageUrl: string; statusLabel?: string }
+  ): Promise<SessionData> {
     const existing = await this.store.get(sessionId);
     if (!existing) {
       throw new Error('Session not found');
@@ -140,7 +150,9 @@ export class SessionService {
       version: existing.version + 1,
       characterState: {
         ...existing.characterState,
-        avatarUrl
+        avatarUrl: avatar.imageUrl,
+        avatarId: avatar.avatarId,
+        avatarLabel: avatar.statusLabel ?? existing.characterState.avatarLabel
       }
     };
     // Resolve cache promise if it exists for update operations
@@ -169,6 +181,10 @@ export class SessionService {
       currentStress: profile.defaultState.stress
     };
 
+    const baseState = { ...profile.defaultState, name: profile.name };
+    const mode = baseState.mode ?? 'NORMAL';
+    const avatarLabel = baseState.avatarLabel ?? mode.toLowerCase();
+
     return {
       sessionId,
       characterId: profile.id,
@@ -176,8 +192,53 @@ export class SessionService {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       version: 1,
-      characterState: { ...profile.defaultState, name: profile.name },
+      characterState: {
+        ...baseState,
+        mode,
+        avatarLabel
+      },
       messages: [initialAssistant]
     };
+  }
+
+  private async hydrateAvatarFromLibrary(
+    session: SessionData,
+    cacheInstance?: SessionCache | null
+  ): Promise<SessionData> {
+    if (!this.avatarService) return session;
+    const current = session.characterState;
+    if (current.avatarId) return session;
+
+    const labelCandidates = [current.avatarLabel, current.mode?.toLowerCase()].filter(
+      (label): label is string => Boolean(label)
+    );
+
+    let avatar = null;
+    for (const label of labelCandidates) {
+      avatar = await this.avatarService.findLatestAvatarByLabel(session.characterId, label);
+      if (avatar) break;
+    }
+    if (!avatar) {
+      avatar = await this.avatarService.findLatestAvatar(session.characterId);
+    }
+    if (!avatar) {
+      return session;
+    }
+    if (current.avatarId === avatar.id) {
+      return session;
+    }
+
+    const updated: SessionData = {
+      ...session,
+      characterState: {
+        ...current,
+        avatarId: avatar.id,
+        avatarLabel: avatar.statusLabel,
+        avatarUrl: avatar.imageUrl
+      }
+    };
+    await this.store.set(updated);
+    await cacheInstance?.set(updated);
+    return updated;
   }
 }

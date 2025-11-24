@@ -21,7 +21,7 @@ import { normalizeLanguageCode } from '@/config/i18nConfig';
 const defaultState = characterStateSchema.parse({});
 
 /**
- * 功能：提供聊天页面所需的状态与操作
+ * 功能：提供聊天页面骨架与组合，连接核心交互控制器与UI组件
  * Description: Provide state and actions for chat page
  * @returns {object} 包含会话、输入、发送与生成头像等方法的对象 | Object with session, input, send and avatar generation methods
  */
@@ -65,6 +65,7 @@ export function useChatController() {
       state.stress >= 90
         ? CHARACTER_PROFILE.avatarPrompts.overload
         : CHARACTER_PROFILE.avatarPrompts.calm;
+    const statusLabel = state.avatarLabel ?? state.mode.toLowerCase();
     try {
       addLog({ source: 'GEN_IMG', message: 'Generating avatar...' });
       const imageResponse = await generateImage({
@@ -72,7 +73,9 @@ export function useChatController() {
         characterId: activeCharacterId,
         prompt: moodPrompt,
         ratio: '1:1',
-        updateAvatar: true
+        updateAvatar: true,
+        statusLabel,
+        metadata: { trigger: 'manual-ui', stress: state.stress }
       });
       const currentSession = queryClient.getQueryData<SessionData>(sessionQueryKey) ?? session;
       if (currentSession) {

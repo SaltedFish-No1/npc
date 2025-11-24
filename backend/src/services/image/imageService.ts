@@ -8,6 +8,7 @@
 import { SessionService } from '../sessions/sessionService.js';
 import { LLMClient } from '../../clients/llmClient.js';
 import { SessionData } from '../../schemas/chat.js';
+import { AvatarService, StoredAvatar } from '../avatars/avatarService.js';
 
 /**
  * 图片服务：封装图片生成与会话头像更新
@@ -16,7 +17,8 @@ import { SessionData } from '../../schemas/chat.js';
 export class ImageService {
   constructor(
     private readonly llmClient: LLMClient,
-    private readonly sessionService: SessionService
+    private readonly sessionService: SessionService,
+    private readonly avatarService: AvatarService
   ) {}
 
   /**
@@ -36,7 +38,9 @@ export class ImageService {
     ratio?: '1:1' | '16:9' | '4:3';
     useImagePrompt?: boolean;
     updateAvatar?: boolean;
-  }): Promise<{ imageUrl: string; session: SessionData }>
+    statusLabel?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<{ imageUrl: string; session: SessionData; avatar?: StoredAvatar }>
   {
     const prompt = params.useImagePrompt
       ? this.findLatestImagePrompt(params.session) ?? params.prompt
@@ -51,12 +55,33 @@ export class ImageService {
       throw new Error('Image API returned empty payload');
     }
     let session = params.session;
+    let storedAvatar: StoredAvatar | undefined;
 
     if (params.updateAvatar && imageUrl) {
-      session = await this.sessionService.updateAvatar(params.session.sessionId, imageUrl);
+      const statusLabel =
+        params.statusLabel ??
+        params.session.characterState.avatarLabel ??
+        params.session.characterState.mode?.toLowerCase() ??
+        'default';
+      storedAvatar = await this.avatarService.createAvatar({
+        characterId: params.session.characterId,
+        statusLabel,
+        imageUrl,
+        metadata: {
+          prompt,
+          ratio: params.ratio,
+          useImagePrompt: params.useImagePrompt ?? false,
+          ...(params.metadata ?? {})
+        }
+      });
+      session = await this.sessionService.updateAvatar(params.session.sessionId, {
+        avatarId: storedAvatar.id,
+        imageUrl: storedAvatar.imageUrl,
+        statusLabel: storedAvatar.statusLabel
+      });
     }
 
-    return { imageUrl, session };
+    return { imageUrl, session, avatar: storedAvatar };
   }
 
   /**
